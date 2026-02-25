@@ -86,6 +86,7 @@ curl -sSL -o "$batteryfolder/dist/notification_permission.scpt" "https://github.
 rm "$batteryfolder/repo.zip"
 
 # Create dedicated bin folder with root ownership (security requirement)
+# Safety check: verify binfolder hasn't been modified (defense against code injection)
 echo "[ 3 ] Create root-owned executable folder"
 if [[ "$binfolder" != "$EXPECTED_BINFOLDER" ]]; then
 	echo "Error: invalid binfolder path"
@@ -112,7 +113,7 @@ if [[ $check_smc =~ " Bad " ]] || [[ $check_smc =~ " bad " ]] ; then # current i
 	check_smc=$($binfolder/smc 2>&1)
 	if [[ $check_smc =~ " Bad " ]] || [[ $check_smc =~ " bad " ]] ; then # current is not a right version
 		echo "Error: BatteryOptimizer seems not compatible with your MAC yet"
-		exit
+		exit 1
 	fi
 fi
 

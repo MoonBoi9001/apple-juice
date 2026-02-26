@@ -31,7 +31,7 @@
 ### [Battery APP v1.2.7](https://github.com/actuallymentor/battery) 錯誤修復 
 - 電池校正失敗並停留在 10%
 - 由於同時充電和放電，電池健康狀況惡化
-- 啟動時啟動的電池進程的 PID 不會被存儲，因此 "battery maintain stop" 無法終止原有的 maintain
+- 啟動時啟動的電池進程的 PID 不會被存儲，因此 "apple-juice maintain stop" 無法終止原有的 maintain
 
 ### 刪除指令
 - 電池轉接器開/關（令人困惑，最好不要使用）
@@ -64,7 +64,7 @@ curl -s https://raw.githubusercontent.com/js4jiang5/BatteryOptimizer_for_Mac/mai
 
 1. 下載 `smc` 工具 (編譯來源 [hholtmann/smcFanControl](https://github.com/hholtmann/smcFanControl.git))
 2. 安裝 `smc` 至 `/usr/local/bin`
-3. 安裝 `battery` 至 `/usr/local/bin`
+3. 安裝 `apple-juice` 至 `/usr/local/bin`
 4. 安裝 `brew` 以安裝 `sleepwatcher` (Intel CPU Macs 不需要，會自動跳過)
 5. 安裝 `sleepwatcher` (Intel CPU Macs 不需要，會自動跳過)
 
@@ -114,56 +114,56 @@ curl -s https://raw.githubusercontent.com/js4jiang5/BatteryOptimizer_for_Mac/mai
 
 ### 使用方法
 
-如需協助，請執行不含參數的 `battery` 或 `battery help`:
+如需協助，請執行不含參數的 `apple-juice` 或 `apple-juice help`:
 
 ```
 Battery CLI utility v2.0.0
 
 Usage:
 
-  battery maintain PERCENTAGE[10-100,longevity,stop,suspend,recover] SAILING_TARGET[5-99]
+  apple-juice maintain PERCENTAGE[10-100,longevity,stop,suspend,recover] SAILING_TARGET[5-99]
   - PERCENTAGE 為充電上限，超過則停止充電
   - SAILING_TARGET 為航行目標，低於此值則開始充電。若未指定則默認值為 (充電上限-5)
   - 範例:
-    battery maintain 80 50    # 高於80% 停止充電，低於 50% 開始充電
-    battery maintain 80    # 相當於 battery maintain 80 75
-    battery maintain longevity    # 長壽模式：65% 航行至 60%，每月自動平衡，電芯不平衡監測
-    battery maintain stop   # 終止進行中的 battery maintain 並立即充電。重開機後也不會進行 battery maintain
-    battery maintain suspend   # 暫停 battery maintain 並立即充電。如果電源拔掉後重新連上 maintain 就會恢復，適合暫時需充電到 100% 的場合，例如外出旅遊時
-    battery maintain recover   # 恢復 battery maintain
+    apple-juice maintain 80 50    # 高於80% 停止充電，低於 50% 開始充電
+    apple-juice maintain 80    # 相當於 apple-juice maintain 80 75
+    apple-juice maintain longevity    # 長壽模式：65% 航行至 60%，每月自動平衡，電芯不平衡監測
+    apple-juice maintain stop   # 終止進行中的 apple-juice maintain 並立即充電。重開機後也不會進行 apple-juice maintain
+    apple-juice maintain suspend   # 暫停 apple-juice maintain 並立即充電。如果電源拔掉後重新連上 maintain 就會恢復，適合暫時需充電到 100% 的場合，例如外出旅遊時
+    apple-juice maintain recover   # 恢復 apple-juice maintain
 
-  battery maintain longevity
+  apple-juice maintain longevity
   - 針對電池壽命最佳化的預設值
-  - 相當於 'battery maintain 65 60'（每顆電芯約 3.85V，遠低於壓力閾值）
+  - 相當於 'apple-juice maintain 65 60'（每顆電芯約 3.85V，遠低於壓力閾值）
   - 相較於 100% 充電，可提供 4-8 倍的循環壽命，並減少日曆老化
   - 最適合長期插電使用且不需要最大電量的情況
   - 自動啟用每月平衡（充電至 100%，維持 1.5 小時進行 BMS 電芯平衡）
   - 每小時監測電芯電壓不平衡；若差異超過 0.2V 則觸發平衡
   - 參考資料：https://batteryuniversity.com/article/bu-808-how-to-prolong-lithium-based-batteries
 
-  battery balance
+  apple-juice balance
   - 簡化的電芯平衡：充電至 100%，維持 1.5 小時進行 BMS 平衡，然後返回維護百分比
   - 當長壽模式偵測到電芯不平衡超過 0.2V 時自動觸發
-  - 也可在 battery maintain 運行時手動執行
+  - 也可在 apple-juice maintain 運行時手動執行
 
-  battery calibrate
+  apple-juice calibrate
   - 電池校正會將電池放電至 15%, 然後充電到 100%, 保持一小時後, 放電到所設定的充電上限
   - 如果 macbook 螢幕打開且已接電源，電池校正立刻開始。
   - 如果 macbook 螢幕沒打開或是沒接電源線, 會收到提醒通知。一旦 macbook 螢幕打開且已接電源，電池校正就自動啟動。如果超過一天仍未打開螢幕，則電池校正停止
   - 電池校正過程中每一步驟完成都會收到通知直到電池校正結束或出現錯誤
-    eg: battery calibrate   # 開始電池校正
-    eg: battery calibrate stop # 停止電池校正
+    eg: apple-juice calibrate   # 開始電池校正
+    eg: apple-juice calibrate stop # 停止電池校正
 
-  battery schedule
+  apple-juice schedule
     每月最多安排 4 日進行定期電池校正，或每 1~12 週指定星期幾，或每 1~3 個月指定一日。預設為每月一號上午 9 點。
     範例:
-    battery schedule    # 每月一日早上九點電池校正
-    battery schedule day 1 8 15 22    # 每月 1, 8, 15, 22 日早上九點電池校正
-    battery schedule day 3 18 hour 13    # 每月 3, 18 日 13:00 (下午一點)電池校正
-    battery schedule day 6 16 26 hour 18 minute 30    # 每月 6, 16, 26 日 18:30 電池校正
-    battery schedule weekday 0 week_period 2 hour 21 minute 30 # 每兩個禮拜的禮拜日 21:30 電池校正
-    battery schedule disable    # 停止定期電池校正
-    battery schedule enable    # 重啟定期電池校正
+    apple-juice schedule    # 每月一日早上九點電池校正
+    apple-juice schedule day 1 8 15 22    # 每月 1, 8, 15, 22 日早上九點電池校正
+    apple-juice schedule day 3 18 hour 13    # 每月 3, 18 日 13:00 (下午一點)電池校正
+    apple-juice schedule day 6 16 26 hour 18 minute 30    # 每月 6, 16, 26 日 18:30 電池校正
+    apple-juice schedule weekday 0 week_period 2 hour 21 minute 30 # 每兩個禮拜的禮拜日 21:30 電池校正
+    apple-juice schedule disable    # 停止定期電池校正
+    apple-juice schedule enable    # 重啟定期電池校正
     限制:
       1. 每月最多四日
       2. 正確日期(day)範圍  [1-28]
@@ -173,52 +173,52 @@ Usage:
       6. 正確星期週期(week_period)範圍 [1-12]
       7. 正確月週期(month_period)範圍 [1-3]
 
-  battery charge LEVEL[1-100, stop]
+  apple-juice charge LEVEL[1-100, stop]
     將電池充電到指定百分比，並在達到該百分比時停止充電
-    eg: battery charge 90
-    eg: battery charge stop # 終止進行中的充電程序並停止充電
+    eg: apple-juice charge 90
+    eg: apple-juice charge stop # 終止進行中的充電程序並停止充電
 
-  battery discharge LEVEL[1-100, stop]
+  apple-juice discharge LEVEL[1-100, stop]
     將電池放電到指定百分比，並在達到該百分比時停止放電
-    eg: battery discharge 90
-    eg: battery discharge stop # 終止進行中的放電程序並停止放電
+    eg: apple-juice discharge 90
+    eg: apple-juice discharge stop # 終止進行中的放電程序並停止放電
 
-  battery status
+  apple-juice status
     顯示電池 SMC 狀態、容量、溫度、運作狀況和循環計數
 
-  battery dailylog
+  apple-juice dailylog
     顯示電池日誌以及電池日誌儲存位置
 
-  battery changelog
+  apple-juice changelog
     顯示在 Github 上最新版本的變更內容
 
-  battery calibratelog
+  apple-juice calibratelog
     顯示電池校正歷史記錄
 
-  battery logs LINES[integer, optional]
+  apple-juice logs LINES[integer, optional]
     顯示電池記錄的最末指定行數
-    eg: battery logs 100
+    eg: apple-juice logs 100
 
-  battery language LANG[tw,us]
-    eg: battery language tw  # 電池狀態與通知以中文顯示
-    eg: battery language us  # 電池狀態與通知以英文顯示
+  apple-juice language LANG[tw,us]
+    eg: apple-juice language tw  # 電池狀態與通知以中文顯示
+    eg: apple-juice language us  # 電池狀態與通知以英文顯示
 
-  battery ssd
+  apple-juice ssd
     顯示 SSD disk0 健康狀況
 
-  battery ssdlog
+  apple-juice ssdlog
     顯示 SSD disk0 健康狀況日誌
 
-  battery update
+  apple-juice update
     更新至最新版本
 
-  battery version
+  apple-juice version
     顯示目前版本
 
-  battery reinstall
+  apple-juice reinstall
     重新安裝 BatteryOptimizer_for_Mac
 
-  battery uninstall
+  apple-juice uninstall
     解除安裝，完成後電池會持續充電
 ```
 

@@ -194,7 +194,7 @@ This fork fixes **29 vulnerabilities** found in upstream:
 - Signal handler reentrancy bugs
 - Missing input validation
 
-Executables are root-owned in `/usr/local/co.battery-optimizer`.
+Executables are root-owned in `/usr/local/co.apple-juice`.
 
 <br>
 

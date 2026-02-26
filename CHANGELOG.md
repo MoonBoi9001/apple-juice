@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.0.1
+
+### Fixed
+- Auto-detect installation directory for Homebrew compatibility
+- Process detection now works correctly (use `args` instead of `comm`)
+- osascript quote escaping in setup dialog
+
+### Changed
+- Removed Chinese language support (English only)
+- Status now shows "Longevity mode active" when using longevity preset
+- Clean up orphaned language config on update
+
 ## v1.0.0
 
 Initial release - fork of BatteryOptimizer_for_Mac with full rebrand.

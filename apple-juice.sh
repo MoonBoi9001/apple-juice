@@ -9,7 +9,7 @@
 ## Update management
 ## variables are used by this binary as well at the update script
 ## ###############
-APPLE_JUICE_VERSION="v1.0.1"
+APPLE_JUICE_VERSION="v1.0.2"
 APPLE_JUICE_VISUDO_VERSION="v1.0.5"
 
 # Path fixes for unexpected environments

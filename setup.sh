@@ -242,9 +242,9 @@ notice="Installation completed.
 
 Script Editor is opened. Please manually click the play button in Script Editor for permission of notification,
 then setup your MAC system settings as follows
-1.	System Settings > Battery > Battery Health > click the i icon > toggle off \"Optimize Battery Charging\"
-2.	System Settings > Notifications > enable \"Allow notifications when mirroring or sharing\"
-3.	System Settings > Notifications > Applications > Script Editor > Choose \"Alerts\"
+1.	System Settings > Battery > Battery Health > click the i icon > toggle off \\\"Optimize Battery Charging\\\"
+2.	System Settings > Notifications > enable \\\"Allow notifications when mirroring or sharing\\\"
+3.	System Settings > Notifications > Applications > Script Editor > Choose \\\"Alerts\\\"
 If Script Editor is missing in the Notifications list, please reboot your Mac and check again.
 "
 

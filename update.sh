@@ -165,6 +165,9 @@ if [[ -z $(read_config clamshell_discharge) ]]; then write_config clamshell_disc
 if [[ -z $(read_config webhookid) ]]; then write_config webhookid "$(cat "$configfolder/ha_webhook.id" 2>/dev/null)"; rm -rf "$configfolder/ha_webhook.id"; fi
 if test -f "$configfolder/sig"; then rm -rf "$configfolder/sig"; fi
 if test -f "$configfolder/state"; then rm -rf "$configfolder/state"; fi
+if test -f "$configfolder/language.code"; then rm -rf "$configfolder/language.code"; fi
+# Remove deprecated language config (Chinese support removed)
+sed -i '' '/^language = /d' "$config_file" 2>/dev/null
 
 # Remove tempfiles
 cd

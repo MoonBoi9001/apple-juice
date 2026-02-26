@@ -273,7 +273,7 @@ Select `Alerts`
 
 <div align="center">
 
-**[📖 Full Docs](https://github.com/js4jiang5/BatteryOptimizer_for_Mac)** · **[🐛 Report Issue](https://github.com/MoonBoi9001/apple-juice/issues)** · **[⭐ Star on GitHub](https://github.com/MoonBoi9001/apple-juice)**
+**[🐛 Report Issue](https://github.com/MoonBoi9001/apple-juice/issues)** · **[⭐ Star on GitHub](https://github.com/MoonBoi9001/apple-juice)**
 
 </div>
 

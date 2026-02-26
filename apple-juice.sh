@@ -2724,7 +2724,13 @@ if [[ "$action" == "status" ]]; then
 		maintain_percentage=$(read_config maintain_percentage)
 		maintain_status=$(echo $(cat "$pidfile" 2>/dev/null) | awk '{print $2}')
 		if [[ "$maintain_status" == "active" ]]; then
-			if [[ $maintain_percentage ]]; then
+			if [[ "$(read_config longevity_mode)" == "enabled" ]]; then
+				if $is_TW; then
+					log "長壽模式運作中 (65% 滑行至 60%)"
+				else
+					log "Longevity mode active (65% sailing to 60%)"
+				fi
+			elif [[ $maintain_percentage ]]; then
 				upper_limit=$(echo $maintain_percentage | awk '{print $1}')
 				lower_limit=$(echo $maintain_percentage | awk '{print $2}')
 				if [[ $upper_limit ]]; then
@@ -2737,11 +2743,11 @@ if [[ "$action" == "status" ]]; then
 						maintain_level=$(echo "$upper_limit"% with sailing to "$lower_limit"%)
 					fi
 				fi
-			fi
-			if $is_TW; then
-				log "您的電池最佳化維持在 $maintain_level"
-			else
-				log "Your battery is currently being maintained at $maintain_level"
+				if $is_TW; then
+					log "您的電池最佳化維持在 $maintain_level"
+				else
+					log "Your battery is currently being maintained at $maintain_level"
+				fi
 			fi
 		else
 			if $is_TW; then

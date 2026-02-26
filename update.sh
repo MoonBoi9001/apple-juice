@@ -139,14 +139,14 @@ if [[ 10#$(version_number $version_local) -lt 10#$(version_number "v2.0.14") ]];
 			sudo install -d -m 755 -o root -g wheel "$binfolder"
 		fi
 		sudo cp $downloadfolder/dist/smc_intel $binfolder/smc
-		sudo chown root:wheel $binfolder/smc
+		sudo chown -h root:wheel $binfolder/smc
 		sudo chmod 755 $binfolder/smc
 	fi
 fi
 
 echo "[ 2 ] Writing script to $binfolder/apple-juice"
 sudo cp $downloadfolder/apple-juice.sh $binfolder/apple-juice
-sudo chown root:wheel $binfolder/apple-juice
+sudo chown -h root:wheel $binfolder/apple-juice
 sudo chmod 755 $binfolder/apple-juice
 
 # Create/update symlinks in /usr/local/bin for PATH accessibility

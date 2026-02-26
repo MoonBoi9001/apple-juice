@@ -101,13 +101,13 @@ if [[ $cpu_type == "apple" ]]; then
 else
 	sudo cp "$downloadfolder/dist/smc_intel" "$binfolder/smc"
 fi
-sudo chown root:wheel "$binfolder/smc"
+sudo chown -h root:wheel "$binfolder/smc"
 sudo chmod 755 "$binfolder/smc"
 # Check if smc works (use explicit path since symlinks not created yet)
 check_smc=$("$binfolder/smc" 2>&1)
 if [[ $check_smc =~ " Bad " ]] || [[ $check_smc =~ " bad " ]] ; then # current is not a right version
 	sudo cp "$downloadfolder/dist/smc_intel" "$binfolder/smc"
-	sudo chown root:wheel "$binfolder/smc"
+	sudo chown -h root:wheel "$binfolder/smc"
 	sudo chmod 755 "$binfolder/smc"
 	# check again
 	check_smc=$($binfolder/smc 2>&1)
@@ -122,7 +122,7 @@ sudo cp "$downloadfolder/apple-juice.sh" "$binfolder/apple-juice"
 
 echo "[ 5 ] Setting correct file permissions"
 # Set permissions for apple-juice executables (must be root-owned for security)
-sudo chown root:wheel "$binfolder/apple-juice"
+sudo chown -h root:wheel "$binfolder/apple-juice"
 sudo chmod 755 "$binfolder/apple-juice"
 
 # Create symlinks in /usr/local/bin for PATH accessibility
@@ -134,19 +134,19 @@ sudo chown -h root:wheel /usr/local/bin/smc
 
 # Set permissions for logfiles
 mkdir -p "$configfolder" || { echo "Failed to create config directory"; exit 1; }
-sudo chown -R "$calling_user" "$configfolder"
+sudo chown -hR "$calling_user" "$configfolder"
 
 touch "$logfile"
-sudo chown "$calling_user" "$logfile"
+sudo chown -h "$calling_user" "$logfile"
 sudo chmod 755 "$logfile"
 
 touch "$pidfile"
-sudo chown "$calling_user" "$pidfile"
+sudo chown -h "$calling_user" "$pidfile"
 sudo chmod 755 "$pidfile"
 
 echo "[ 6 ] Setting up visudo declarations"
 sudo "$downloadfolder/apple-juice.sh" visudo "$USER"
-sudo chown -R "$calling_user" "$configfolder"
+sudo chown -hR "$calling_user" "$configfolder"
 
 # Run apple-juice maintain with default percentage 80
 echo "[ 7 ] Set default maintain percentage to 80%, can be changed afterwards"
@@ -174,13 +174,13 @@ if [[ $(smc -k BCLM -r) == *"no data"* ]] && [[ $(smc -k CHWA -r) != *"no data"*
 	launchctl enable "gui/$(id -u $USER)/com.apple-juice.shutdown"
 	launchctl unload "$HOME/Library/LaunchAgents/apple-juice_shutdown.plist" 2> /dev/null
 	launchctl load "$HOME/Library/LaunchAgents/apple-juice_shutdown.plist" 2> /dev/null
-	sudo chown -R $calling_user $HOME/.reboot
+	sudo chown -hR $calling_user $HOME/.reboot
 	sudo chmod 755 $HOME/.reboot
 	sudo chmod +x $HOME/.reboot
-	sudo chown -R $calling_user $HOME/.shutdown
+	sudo chown -hR $calling_user $HOME/.shutdown
 	sudo chmod 755 $HOME/.shutdown
 	sudo chmod +x $HOME/.shutdown
-	sudo chown root:wheel $binfolder/shutdown.sh
+	sudo chown -h root:wheel $binfolder/shutdown.sh
 	sudo chmod 755 $binfolder/shutdown.sh
 	# Create symlink for shutdown.sh (only when the file is installed)
 	sudo ln -sf "$binfolder/shutdown.sh" /usr/local/bin/shutdown.sh
@@ -227,10 +227,10 @@ if [[ $(smc -k BCLM -r) == *"no data"* ]] && [[ $(smc -k CHWA -r) != *"no data"*
 		echo "[ 11 ] Generate ~/.sleep and ~/.wakeup"
 		sudo cp $downloadfolder/dist/.sleep $HOME/.sleep
 		sudo cp $downloadfolder/dist/.wakeup $HOME/.wakeup
-		sudo chown -R $calling_user $HOME/.sleep
+		sudo chown -hR $calling_user $HOME/.sleep
 		sudo chmod 755 $HOME/.sleep
 		sudo chmod +x $HOME/.sleep
-		sudo chown -R $calling_user $HOME/.wakeup
+		sudo chown -hR $calling_user $HOME/.wakeup
 		sudo chmod 755 $HOME/.wakeup
 		sudo chmod +x $HOME/.wakeup
 	fi

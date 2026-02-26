@@ -1206,8 +1206,8 @@ function maintain_is_running() {
 		pid=$(cat "$pidfile" 2>/dev/null | awk '{print $1}')
 		# Use kill -0 for atomic process existence check (Issue #5: TOCTOU fix)
 		if [[ -n "$pid" ]] && [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" 2>/dev/null; then
-			# Verify it's actually an apple-juice process
-			if ps -p "$pid" -o comm= 2>/dev/null | grep -q apple-juice; then
+			# Verify it's actually an apple-juice process (use args, not comm, since it's a bash script)
+			if ps -p "$pid" -o args= 2>/dev/null | grep -q apple-juice; then
 				echo 1
 				return
 			fi
@@ -1223,8 +1223,8 @@ function calibrate_is_running() {
 		pid_calibrate=$(cat "$calibrate_pidfile" 2>/dev/null)
 		# Use kill -0 for atomic process existence check (Issue #5: TOCTOU fix)
 		if [[ -n "$pid_calibrate" ]] && [[ "$pid_calibrate" =~ ^[0-9]+$ ]] && kill -0 "$pid_calibrate" 2>/dev/null; then
-			# Verify it's actually an apple-juice process
-			if ps -p "$pid_calibrate" -o comm= 2>/dev/null | grep -q apple-juice; then
+			# Verify it's actually an apple-juice process (use args, not comm, since it's a bash script)
+			if ps -p "$pid_calibrate" -o args= 2>/dev/null | grep -q apple-juice; then
 				echo 1
 				return
 			fi

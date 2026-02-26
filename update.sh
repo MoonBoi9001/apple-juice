@@ -188,7 +188,7 @@ cd
 # Note: tempfolder is cleaned up by trap on EXIT
 echo "[ Final ] Removed temporary folder"
 
-echo -e "\n🎉 Battery tool updated.\n"
+echo -e "\n🎉 apple-juice updated.\n"
 
 # Restart apple-juice maintain process
 echo -e "Restarting apple-juice maintain.\n"

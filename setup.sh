@@ -73,7 +73,7 @@ else
 fi
 
 # Note: github names zips by <reponame>-<branchname>.replace( '/', '-' )
-update_branch="2.0.27"
+update_branch="1.0.0"
 in_zip_folder_name="apple-juice-$update_branch"
 downloadfolder="$tempfolder/download"
 echo "[ 2 ] Downloading latest version of apple-juice"

@@ -9,8 +9,8 @@
 ## Update management
 ## variables are used by this binary as well at the update script
 ## ###############
-BATTERY_CLI_VERSION="v2.0.28"
-BATTERY_VISUDO_VERSION="v1.0.5"
+APPLE_JUICE_VERSION="v1.0.0"
+APPLE_JUICE_VISUDO_VERSION="v1.0.5"
 
 # Path fixes for unexpected environments
 PATH=/usr/local/co.apple-juice:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
@@ -54,7 +54,7 @@ fi
 
 # CLI help message
 helpmessage="
-apple-juice CLI $BATTERY_CLI_VERSION
+apple-juice CLI $APPLE_JUICE_VERSION
 
 Usage:
 
@@ -1338,7 +1338,7 @@ if [[ "$action" == "visudo" ]]; then
 	# If the visudo file is the same (no error, exit code 0), set the permissions just
 	if sudo cmp $visudo_file $visudo_tmpfile &>/dev/null; then
 
-		echo "The existing visudo file is what it should be for version $BATTERY_CLI_VERSION"
+		echo "The existing visudo file is what it should be for version $APPLE_JUICE_VERSION"
 
 		# Check if file permissions are correct, if not, set them
 		current_visudo_file_permissions=$(stat -f "%Lp" $visudo_file)
@@ -1410,19 +1410,19 @@ if [[ "$action" == "update" ]]; then
 		github_link="https://raw.githubusercontent.com/MoonBoi9001/apple-juice/main"
 	fi
 	script_new=$(echo $(curl -sSL "$github_link/apple-juice.sh"))
-	version_new=$(echo $(get_parameter "$script_new" "BATTERY_CLI_VERSION") | tr -d \")
+	version_new=$(echo $(get_parameter "$script_new" "APPLE_JUICE_VERSION") | tr -d \")
 
 	if [[ $script_new == "404: Not Found" ]]; then
 		log "Error: the specified update file is not available"
 		exit 1
 	fi
 
-	visudo_new_version=$(echo $(get_parameter "$script_new" "BATTERY_VISUDO_VERSION") | tr -d \")
-	if [[ $version_new == $BATTERY_CLI_VERSION ]] && [[ $visudo_new_version == $BATTERY_VISUDO_VERSION ]] && [[ "$setting" != "force" ]]; then
+	visudo_new_version=$(echo $(get_parameter "$script_new" "APPLE_JUICE_VISUDO_VERSION") | tr -d \")
+	if [[ $version_new == $APPLE_JUICE_VERSION ]] && [[ $visudo_new_version == $APPLE_JUICE_VISUDO_VERSION ]] && [[ "$setting" != "force" ]]; then
 		if $is_TW; then
-			osascript -e 'display dialog "'"$BATTERY_CLI_VERSION 已是最新版，不需要更新"'" buttons {"OK"} default button 1 giving up after 60 with icon note with title "apple-juice"' >> /dev/null
+			osascript -e 'display dialog "'"$APPLE_JUICE_VERSION 已是最新版，不需要更新"'" buttons {"OK"} default button 1 giving up after 60 with icon note with title "apple-juice"' >> /dev/null
 		else
-			osascript -e 'display dialog "'"Your version $BATTERY_CLI_VERSION is already the latest. No need to update."'" buttons {"OK"} default button 1 giving up after 60 with icon note with title "apple-juice"' >> /dev/null
+			osascript -e 'display dialog "'"Your version $APPLE_JUICE_VERSION is already the latest. No need to update."'" buttons {"OK"} default button 1 giving up after 60 with icon note with title "apple-juice"' >> /dev/null
 		fi		
 	else
 		button_empty="                                                                                                                                                    "
@@ -1798,7 +1798,7 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 
 	informed_version=$(read_config informed_version)
 	if [[ -z $informed_version ]]; then
-		informed_version=$BATTERY_CLI_VERSION
+		informed_version=$APPLE_JUICE_VERSION
 	fi
 	
 	if [[ -z $(read_config calibrate_next) ]]; then 
@@ -1921,9 +1921,9 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 		# check if there is update version
 		if [[ $(date +%s) -gt $check_update_timeout ]]; then
 			updated="$(curl -sS $github_link/apple-juice.sh | grep "$informed_version")"
-			new_version="$(curl -sS $github_link/apple-juice.sh | grep "BATTERY_CLI_VERSION=")"
+			new_version="$(curl -sS $github_link/apple-juice.sh | grep "APPLE_JUICE_VERSION=")"
 			new_version="$(echo $new_version | awk '{print $1}')"
-			new_version=$(echo ${new_version/"BATTERY_CLI_VERSION="} | tr -d \")
+			new_version=$(echo ${new_version/"APPLE_JUICE_VERSION="} | tr -d \")
 			
 			if [[ -z $updated ]] && [[ $new_version ]]; then
 				safe_new_version=$(escape_osascript "$new_version")
@@ -3283,7 +3283,7 @@ fi
 
 # Show version
 if [[ "$action"  == "version" ]]; then
-	echo -e "$BATTERY_CLI_VERSION"
+	echo -e "$APPLE_JUICE_VERSION"
 	exit 0
 fi
 

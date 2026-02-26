@@ -135,10 +135,6 @@ Usage:
     output logs of the apple-juice CLI and GUI
     eg: apple-juice logs 100
 
-  apple-juice language LANG[tw,us]
-    eg: apple-juice language tw  # show status and notification in traditional Chinese if available
-    eg: apple-juice language us  # show status and notification in English
-
   apple-juice ssd
     show SSD disk0 status
 
@@ -224,11 +220,11 @@ function valid_action() {
     
     # List of valid actions
     VALID_ACTIONS=("" "visudo" "maintain" "calibrate" "balance" "schedule" "charge" "discharge"
-	"status" "dailylog" "calibratelog" "logs" "language" "update" "version" "reinstall" "uninstall"
+	"status" "dailylog" "calibratelog" "logs" "update" "version" "reinstall" "uninstall"
 	"maintain_synchronous" "status_csv" "create_daemon" "disable_daemon" "remove_daemon" "changelog" "ssd" "ssdlog")
-    
+
     VALID_ACTIONS_USER=("" "visudo" "maintain" "calibrate" "balance" "schedule" "charge" "discharge"
-	"status" "dailylog" "calibratelog" "logs" "language" "update" "version" "reinstall" "uninstall" "changelog" "ssd" "ssdlog")
+	"status" "dailylog" "calibratelog" "logs" "update" "version" "reinstall" "uninstall" "changelog" "ssd" "ssdlog")
 
     # Check if action is valid
     local action_valid=false
@@ -519,61 +515,18 @@ function show_schedule() {
 	schedule_txt="$(read_config calibrate_schedule)"
 	if [[ $schedule_enabled =~ "enabled" ]]; then
 		if [[ $schedule_txt ]]; then
-			if $is_TW; then
-				if ! [[ $schedule_txt =~ "week" ]]; then
-					if ! [[ $schedule_txt =~ "month" ]]; then
-						schedule_txt=${schedule_txt/"Schedule calibration on day"/"電池自動校正時程安排在"}
-						schedule_txt=${schedule_txt/"at"/"日"}
-					else
-						schedule_txt=${schedule_txt/"Schedule calibration on day"/"電池自動校正時程安排在"}
-						schedule_txt=${schedule_txt/"every "/"日每"}
-						schedule_txt=${schedule_txt/"month at"/"個月"}
-						schedule_txt=${schedule_txt%" starting"*}
-					fi
-				else
-					schedule_txt=${schedule_txt/"Schedule calibration on"/"電池自動校正時程安排在"}		
-					schedule_txt=${schedule_txt/"SUN"/"星期日"} 
-					schedule_txt=${schedule_txt/"MON"/"星期一"}
-					schedule_txt=${schedule_txt/"TUE"/"星期二"}
-					schedule_txt=${schedule_txt/"WED"/"星期三"}
-					schedule_txt=${schedule_txt/"THU"/"星期四"}
-					schedule_txt=${schedule_txt/"FRI"/"星期五"}
-					schedule_txt=${schedule_txt/"SAT"/"星期六"}
-					schedule_txt=${schedule_txt/"every "/"每"}
-					schedule_txt=${schedule_txt/"week at"/"週"}
-					schedule_txt=${schedule_txt%" starting"*}
-
-				fi
-				log "$schedule_txt 開始"
-				#check_next_calibration_date
-				log "下次校正日期是 `date -j -f "%s" "$(echo $(check_next_calibration_date) | awk '{print $NF}')" +%Y/%m/%d`"
-			
-			else
-				schedule_txt=${schedule_txt%" starting"*}
-				log "$schedule_txt"
-				log "Next calibration date is `date -j -f "%s" "$(echo $(check_next_calibration_date) | awk '{print $NF}')" +%Y/%m/%d`"
-			fi
+			schedule_txt=${schedule_txt%" starting"*}
+			log "$schedule_txt"
+			log "Next calibration date is `date -j -f "%s" "$(echo $(check_next_calibration_date) | awk '{print $NF}')" +%Y/%m/%d`"
 		else
-			if $is_TW; then
-				log "您尚未設定電池自動校正時程"
-			else
-				log "You haven't scheduled calibration yet"
-			fi
+			log "You haven't scheduled calibration yet"
 		fi
 	else
 		if [[ $schedule_txt ]]; then
-			if $is_TW; then
-				log "您的電池自動校正時程已暫停，要恢復請執行"
-			else
-				log "Your calibration schedule is disabled. Enable it by"
-			fi
+			log "Your calibration schedule is disabled. Enable it by"
 			log "apple-juice schedule enable"
 		else
-			if $is_TW; then
-				log "您尚未設定電池自動校正時程"
-			else
-				log "You haven't scheduled calibration yet"
-			fi
+			log "You haven't scheduled calibration yet"
 		fi
 	fi
 }
@@ -1301,23 +1254,6 @@ fi
 if ! valid_action "$action"; then
     exit 1
 fi
-# check language
-lang=$(defaults read -g AppleLocale)
-
-language=$(read_config language)
-if [[ $language ]]; then
-	if [[ "$language" == "tw" ]]; then
-		is_TW=true
-	else
-		is_TW=false
-	fi
-else
-	if [[ $lang =~ "zh_TW" ]]; then
-		is_TW=true
-	else
-		is_TW=false
-	fi
-fi
 
 # Visudo message
 if [[ "$action" == "visudo" ]]; then
@@ -1419,36 +1355,16 @@ if [[ "$action" == "update" ]]; then
 
 	visudo_new_version=$(echo $(get_parameter "$script_new" "APPLE_JUICE_VISUDO_VERSION") | tr -d \")
 	if [[ $version_new == $APPLE_JUICE_VERSION ]] && [[ $visudo_new_version == $APPLE_JUICE_VISUDO_VERSION ]] && [[ "$setting" != "force" ]]; then
-		if $is_TW; then
-			osascript -e 'display dialog "'"$APPLE_JUICE_VERSION 已是最新版，不需要更新"'" buttons {"OK"} default button 1 giving up after 60 with icon note with title "apple-juice"' >> /dev/null
-		else
-			osascript -e 'display dialog "'"Your version $APPLE_JUICE_VERSION is already the latest. No need to update."'" buttons {"OK"} default button 1 giving up after 60 with icon note with title "apple-juice"' >> /dev/null
-		fi		
+		osascript -e 'display dialog "'"Your version $APPLE_JUICE_VERSION is already the latest. No need to update."'" buttons {"OK"} default button 1 giving up after 60 with icon note with title "apple-juice"' >> /dev/null
 	else
 		button_empty="                                                                                                                                                    "
-		if $is_TW; then
-			changelog=$(get_changelog CHANGELOG_TW)
-			version_new=$(get_version CHANGELOG_TW)
-			safe_version=$(escape_osascript "$version_new")
-			safe_changelog=$(escape_osascript "$changelog")
-			osascript -e 'display dialog "'"$safe_version 更新內容如下\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "繼續"} default button 2 with icon note with title "apple-juice"' >> /dev/null
-		else
-			changelog=$(get_changelog CHANGELOG)
-			version_new=$(get_version CHANGELOG)
-			safe_version=$(escape_osascript "$version_new")
-			safe_changelog=$(escape_osascript "$changelog")
-			osascript -e 'display dialog "'"$safe_version changes include\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "Continue"} default button 2 with icon note with title "apple-juice"' >> /dev/null
-		fi
-		if $is_TW; then
-			safe_version=$(escape_osascript "$version_new")
-			answer="$(osascript -e 'display dialog "'"你現在要更新到$safe_version 嗎?"'" buttons {"立即更新", "跳過此版本"} default button 1 with icon note with title "apple-juice"' -e 'button returned of result')"
-			if [[ $answer == "立即更新" ]]; then
-				answer="Yes"
-			fi
-		else
-			safe_version=$(escape_osascript "$version_new")
-			answer="$(osascript -e 'display dialog "'"Do you want to update to version $safe_version now?"'" buttons {"Yes", "No"} default button 1 with icon note with title "apple-juice"' -e 'button returned of result')"
-		fi
+		changelog=$(get_changelog CHANGELOG)
+		version_new=$(get_version CHANGELOG)
+		safe_version=$(escape_osascript "$version_new")
+		safe_changelog=$(escape_osascript "$changelog")
+		osascript -e 'display dialog "'"$safe_version changes include\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "Continue"} default button 2 with icon note with title "apple-juice"' >> /dev/null
+		safe_version=$(escape_osascript "$version_new")
+		answer="$(osascript -e 'display dialog "'"Do you want to update to version $safe_version now?"'" buttons {"Yes", "No"} default button 1 with icon note with title "apple-juice"' -e 'button returned of result')"
 		
 		if [[ $answer == "Yes" ]]; then
 			# Security note: Downloading to a file first allows inspection before execution.
@@ -1581,22 +1497,14 @@ if [[ "$action" == "charge" ]]; then
 	change_magsafe_led_color "auto"
 	
 	if ! $charge_error; then
-		if $is_TW; then
-			log "電池已充電至 $battery_percentage%"
-		else
-			log "Charging completed at $battery_percentage%"
-		fi
+		log "Charging completed at $battery_percentage%"
 
 		if [[ $battery_percentage -ge $(get_maintain_percentage) ]] && [[ "$(calibrate_is_running)" == "0" ]] && [[ "$original_maintain_status" == "active" ]]; then # if charge level is higher than maintain percentage, recover maintain won't cause discharge
 			$battery_binary maintain recover
 		fi
 		exit 0
 	else
-		if $is_TW; then
-			log "錯誤: 電池充電異常"
-		else
-			log "Error: charge abnormal"
-		fi
+		log "Error: charge abnormal"
 		if [[ "$(calibrate_is_running)" == "0" ]] && [[ "$original_maintain_status" == "active" ]]; then # if discharge level is higher than maintain percentage, recover maintain won't cause charge
 			$battery_binary maintain recover
 		fi
@@ -1690,22 +1598,14 @@ if [[ "$action" == "discharge" ]]; then
 	change_magsafe_led_color "auto"
 	
 	if ! $discharge_error; then
-		if $is_TW; then
-			log "電池已放電至 $battery_percentage%"
-		else
-			log "Discharging completed at $battery_percentage%"
-		fi
+		log "Discharging completed at $battery_percentage%"
 
 		if [[ $battery_percentage -ge $(get_maintain_percentage) ]] && [[ "$(calibrate_is_running)" == "0" ]] && [[ "$original_maintain_status" == "active" ]]; then # if discharge level is higher than maintain percentage, recover maintain won't cause charge
 			$battery_binary maintain recover
 		fi
 		exit 0
 	else
-		if $is_TW; then
-			log "錯誤: 電池放電異常"
-		else
-			log "Error: discharge abnormal"
-		fi
+		log "Error: discharge abnormal"
 		if [[ "$(calibrate_is_running)" == "0" ]] && [[ "$original_maintain_status" == "active" ]]; then # if discharge level is higher than maintain percentage, recover maintain won't cause charge
 			$battery_binary maintain recover
 		fi
@@ -1836,11 +1736,7 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 			if [[ $now_date != $daily_last ]]; then
 				logd "$(get_accurate_battery_percentage)% $(get_voltage)V $(get_battery_temperature)°C $(get_battery_health)% $(get_cycle)" | awk '{printf "%-10s, %9s, %9s, %13s, %9s, %9s\n", $1, $2, $3, $4, $5, $6}' >> $daily_log
 				#if [ "$(date +%d)" == "01" ]; then # monthly notification
-				if $is_TW; then
-					osascript -e 'display notification "'"電池目前 $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C\n健康度 $(get_battery_health)%, 循環次數 $(get_cycle)"'" with title "apple-juice" sound name "Blow"'
-				else
-					osascript -e 'display notification "'"Battery $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C\nHealth $(get_battery_health)%, Cycle $(get_cycle)"'" with title "apple-juice" sound name "Blow"'
-				fi
+				osascript -e 'display notification "'"Battery $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C\nHealth $(get_battery_health)%, Cycle $(get_cycle)"'" with title "apple-juice" sound name "Blow"'
 				#fi
 
 				# SSD log
@@ -1868,21 +1764,13 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 				# remind if tomorrow is calibration date
 				if [[ $tomorrow_day -eq $schedule_day ]] && [[ $diff_sec -lt $((48*60*60)) ]]; then
 					schedule_time="$(echo `date -j -f "%s" $schedule_sec "+%Y/%m/%d %H:%M"`)"
-					if $is_TW; then
-						osascript -e 'display notification "'"提醒您，明天 ($schedule_time) 將進行電池校正"'" with title "apple-juice" sound name "Blow"'
-					else
-						osascript -e 'display notification "'"Remind you, tomorrow ($schedule_time) is battery calibration day."'" with title "apple-juice" sound name "Blow"'
-					fi
+					osascript -e 'display notification "'"Remind you, tomorrow ($schedule_time) is battery calibration day."'" with title "apple-juice" sound name "Blow"'
 				fi
 
 				# remind if today is calibration date
 				if [[ $now_day -eq $schedule_day ]] && [[ $diff_sec -lt $((24*60*60)) ]]; then
 					schedule_time="$(echo `date -j -f "%s" $schedule_sec "+%Y/%m/%d %H:%M"`)"
-					if $is_TW; then
-						osascript -e 'display notification "'"提醒您，今天 ($schedule_time) 將進行電池校正"'" with title "apple-juice" sound name "Blow"'
-					else
-						osascript -e 'display notification "'"Remind you, today ($schedule_time) is battery calibration day."'" with title "apple-juice" sound name "Blow"'
-					fi
+					osascript -e 'display notification "'"Remind you, today ($schedule_time) is battery calibration day."'" with title "apple-juice" sound name "Blow"'
 				fi
 			fi
 		fi
@@ -1927,11 +1815,7 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 			
 			if [[ -z $updated ]] && [[ $new_version ]]; then
 				safe_new_version=$(escape_osascript "$new_version")
-				if $is_TW; then
-					osascript -e 'display notification "'"有新版$safe_new_version, 請在 Terminal 下輸入 \n\\\"apple-juice update\\\" 更新"'" with title "apple-juice" sound name "Blow"'
-				else
-					osascript -e 'display notification "'"New version $safe_new_version available \nUpdate with command \\\"apple-juice update\\\""'" with title "apple-juice" sound name "Blow"'
-				fi
+				osascript -e 'display notification "'"New version $safe_new_version available \nUpdate with command \\\"apple-juice update\\\""'" with title "apple-juice" sound name "Blow"'
 				informed_version=$new_version
 				write_config informed_version $informed_version
 			fi
@@ -2190,11 +2074,7 @@ if [[ "$action" == "maintain" ]]; then
 		if [[ $(get_battery_percentage) -gt $setting ]]; then # if current battery percentage is higher than maintain percentage
 			if ! [[ $(ps aux | grep $PPID) =~ "setup.sh" ]] && ! [[ $(ps aux | grep $PPID) =~ "update.sh" ]]; then 
 				# Ask user if discharging right now unless this action is invoked by setup.sh
-				if $is_TW; then
-					answer="$(osascript -e 'display dialog "'"你要現在就放電到 $setting% 嗎?"'" buttons {"Yes", "No"} default button 1 giving up after 10 with icon note with title "apple-juice"' -e 'button returned of result')"
-				else
-					answer="$(osascript -e 'display dialog "'"Do you want to discharge battery to $setting% now?"'" buttons {"Yes", "No"} default button 1 giving up after 10 with icon note with title "apple-juice"' -e 'button returned of result')"
-				fi
+				answer="$(osascript -e 'display dialog "'"Do you want to discharge battery to $setting% now?"'" buttons {"Yes", "No"} default button 1 giving up after 10 with icon note with title "apple-juice"' -e 'button returned of result')"
 				if [[ "$answer" == "Yes" ]] || [ -z $answer ]; then
 					log "Start discharging to $setting%"
 					$battery_binary discharge $setting 
@@ -2268,11 +2148,7 @@ if [[ "$action" == "calibrate" ]]; then
 
 	# abort calibration if maintain is not running
 	if [ "$(maintain_is_running)" == "0" ]; then
-		if $is_TW; then
-			osascript -e 'display notification "校正前必須先執行 apple-juice maintain" with title "電池校正錯誤" sound name "Blow"'
-		else
-			osascript -e 'display notification "Battery maintain need to run before calibration" with title "Battery Calibration Error" sound name "Blow"'
-		fi
+		osascript -e 'display notification "Battery maintain need to run before calibration" with title "Battery Calibration Error" sound name "Blow"'
 		log "Calibration Error: Battery maintain need to run before calibration"
 
 		print_calibrate_log $calibrate_time No $health_before %
@@ -2284,11 +2160,7 @@ if [[ "$action" == "calibrate" ]]; then
 	# if lid is closed or AC is not connected, notify the user and wait until lid is open with AC or 1 day timeout
 	if [[ $(lid_closed) == "Yes" ]] || [[ $(get_charger_connection) == "0" ]]; then
 		ha_webhook "open_lid_remind"
-		if $is_TW; then
-			osascript -e 'display notification "準備進行電池校正, 您打開筆電上蓋並接上電源後將立刻開始" with title "電池校正" sound name "Blow"'
-		else
-			osascript -e 'display notification "Battery calibration will start immediately after you open macbook lid and connect AC power" with title "Battery Calibration" sound name "Blow"'
-		fi
+		osascript -e 'display notification "Battery calibration will start immediately after you open macbook lid and connect AC power" with title "Battery Calibration" sound name "Blow"'
 		
 		log "Calibration: Please open macbook lid and connect AC to start calibration"
 		now=$(date +%s)
@@ -2307,10 +2179,9 @@ if [[ "$action" == "calibrate" ]]; then
 		local lid_error=""
 		local ac_error=""
 		local errors=""
-		local errors_tw=""
 
-		[[ $(lid_closed) == "Yes" ]] && lid_error="Macbook lid is not open" && errors_tw="筆電上蓋沒打開"
-		[[ $(get_charger_connection) == "0" ]] && ac_error="No AC power" && errors_tw="${errors_tw:+$errors_tw, }電源沒接"
+		[[ $(lid_closed) == "Yes" ]] && lid_error="Macbook lid is not open"
+		[[ $(get_charger_connection) == "0" ]] && ac_error="No AC power"
 
 		# Combine errors for single log entry
 		if [[ -n "$lid_error" ]] && [[ -n "$ac_error" ]]; then
@@ -2321,13 +2192,8 @@ if [[ "$action" == "calibrate" ]]; then
 			errors="$ac_error"
 		fi
 
-		if $is_TW; then
-			safe_errors_tw=$(escape_osascript "$errors_tw")
-			osascript -e 'display notification "'"$safe_errors_tw"'" with title "電池校正錯誤" sound name "Blow"'
-		else
-			safe_errors=$(escape_osascript "$errors")
-			osascript -e 'display notification "'"$safe_errors!"'" with title "Battery Calibration Error" sound name "Blow"'
-		fi
+		safe_errors=$(escape_osascript "$errors")
+		osascript -e 'display notification "'"$safe_errors!"'" with title "Battery Calibration Error" sound name "Blow"'
 		log "Calibration Error: $errors!"
 
 		print_calibrate_log $calibrate_time No $health_before %
@@ -2356,11 +2222,7 @@ if [[ "$action" == "calibrate" ]]; then
 
 	if [ "$method" == "1" ]; then
 		ha_webhook "start" $(get_accurate_battery_percentage) $(get_voltage) $(get_battery_health) # inform HA calibration has started
-		if $is_TW; then
-			osascript -e 'display notification "校正開始! \n開始放電至15%" with title "電池校正" sound name "Blow"'
-		else
-			osascript -e 'display notification "Calibration has started! \nStart discharging to 15%" with title "Battery Calibration" sound name "Blow"'
-		fi
+		osascript -e 'display notification "Calibration has started! \nStart discharging to 15%" with title "Battery Calibration" sound name "Blow"'
 		log  "Calibration: Calibration has started! Start discharging to 15%"
 
 		# Suspend the maintaining
@@ -2373,11 +2235,7 @@ if [[ "$action" == "calibrate" ]]; then
 		wait $!
 		if [[ $? != 0 ]]; then
 			ha_webhook "err_discharge15"
-			if $is_TW; then
-				osascript -e 'display notification "未成功放電至15%" with title "電池校正錯誤" sound name "Blow"'
-			else
-				osascript -e 'display notification "Discharge to 15% fail" with title "Battery Calibration Error" sound name "Blow"'
-			fi
+			osascript -e 'display notification "Discharge to 15% fail" with title "Battery Calibration Error" sound name "Blow"'
 			log "Calibration Error: Discharge to 15% fail"
 
 			print_calibrate_log $calibrate_time No $health_before %
@@ -2390,11 +2248,7 @@ if [[ "$action" == "calibrate" ]]; then
 		pid_child=""
 		
 		ha_webhook "discharge15_end" $(get_accurate_battery_percentage) $(get_voltage) $(get_battery_health)
-		if $is_TW; then
-			osascript -e 'display notification "已放電至15% \n開始充電到100%" with title "電池校正" sound name "Blow"'
-		else
-			osascript -e 'display notification "Calibration has discharged to 15% \nStart charging to 100%" with title "Battery Calibration" sound name "Blow"'
-		fi
+		osascript -e 'display notification "Calibration has discharged to 15% \nStart charging to 100%" with title "Battery Calibration" sound name "Blow"'
 		log "Calibration: Calibration has discharged to 15%. Start charging to 100%"
 		log "Battery health $(get_battery_health)%, $(get_voltage)V, $(get_battery_temperature)°C"
 
@@ -2405,11 +2259,7 @@ if [[ "$action" == "calibrate" ]]; then
 		wait $!
 		if [[ $? != 0 ]]; then
 			ha_webhook "err_charge100"
-			if $is_TW; then
-				osascript -e 'display notification "未成功充電至100%" with title "電池校正錯誤" sound name "Blow"'
-			else
-				osascript -e 'display notification "Charge to 100% fail" with title "Battery Calibration Error" sound name "Blow"'
-			fi
+			osascript -e 'display notification "Charge to 100% fail" with title "Battery Calibration Error" sound name "Blow"'
 			log "Calibration Error: Charge to 100% fail"
 
 			print_calibrate_log $calibrate_time No $health_before %
@@ -2422,11 +2272,7 @@ if [[ "$action" == "calibrate" ]]; then
 		pid_child=""
 
 		ha_webhook "charge100_end" $(get_accurate_battery_percentage) $(get_voltage) $(get_battery_health)
-		if $is_TW; then
-			osascript -e 'display notification "已充電至100% \n靜候一小時" with title "電池校正" sound name "Blow"'
-		else
-			osascript -e 'display notification "Calibration has charged to 100% \nWaiting for one hour" with title "Battery Calibration" sound name "Blow"'
-		fi
+		osascript -e 'display notification "Calibration has charged to 100% \nWaiting for one hour" with title "Battery Calibration" sound name "Blow"'
 		log "Calibration: Calibration has charged to 100%. Waiting for one hour"
 		log "Battery health $(get_battery_health)%, $(get_voltage)V, $(get_battery_temperature)°C"
 
@@ -2435,11 +2281,7 @@ if [[ "$action" == "calibrate" ]]; then
 		sleep 3600 &
 		wait $!
 		ha_webhook "wait_1hr_done" $(get_accurate_battery_percentage) $(get_voltage) $(get_battery_health)
-		if $is_TW; then
-			osascript -e 'display notification "'"電池已維持在 100% 一小時 \n開始放電至 $setting%"'" with title "電池校正" sound name "Blow"'
-		else
-			osascript -e 'display notification "'"Battery has been maintained at 100% for one hour \nStart discharging to $setting%"'" with title "Battery Calibration" sound name "Blow"'
-		fi
+		osascript -e 'display notification "'"Battery has been maintained at 100% for one hour \nStart discharging to $setting%"'" with title "Battery Calibration" sound name "Blow"'
 		log "Calibration: Battery has been maintained at 100% for one hour"
 		log "Calibration: Start discharging to maintain percentage"
 		log "Battery health $(get_battery_health)%, $(get_voltage)V, $(get_battery_temperature)°C"
@@ -2450,11 +2292,7 @@ if [[ "$action" == "calibrate" ]]; then
 		wait $!
 		if [[ $? != 0 ]]; then
 			ha_webhook "err_discharge_target"
-			if $is_TW; then
-				osascript -e 'display notification "'"未成功放電至 $setting%"'" with title "電池校正錯誤" sound name "Blow"'
-			else
-				osascript -e 'display notification "'"Discharge to $setting% fail"'" with title "Battery Calibration Error" sound name "Blow"'
-			fi
+			osascript -e 'display notification "'"Discharge to $setting% fail"'" with title "Battery Calibration Error" sound name "Blow"'
 			log "Calibration Error: Discharge to $setting% fail"
 
 			print_calibrate_log $calibrate_time No $health_before %
@@ -2467,11 +2305,7 @@ if [[ "$action" == "calibrate" ]]; then
 		pid_child=""
 	else
 		ha_webhook "start" $(get_accurate_battery_percentage) $(get_voltage) $(get_battery_health) # inform HA calibration has started
-		if $is_TW; then
-			osascript -e 'display notification "校正開始！ \n準備充電至 100%" with title "電池校正" sound name "Blow"'
-		else
-			osascript -e 'display notification "Calibration has started! \nStart charging to 100%" with title "Battery Calibration" sound name "Blow"'
-		fi
+		osascript -e 'display notification "Calibration has started! \nStart charging to 100%" with title "Battery Calibration" sound name "Blow"'
 		log  "Calibration: Calibration has started! Start charging to 100%"
 
 		# Suspend the maintaining
@@ -2483,11 +2317,7 @@ if [[ "$action" == "calibrate" ]]; then
 		wait $!
 		if [[ $? != 0 ]]; then
 			ha_webhook "err_charge100"
-			if $is_TW; then
-				osascript -e 'display notification "未成功充電至100%" with title "電池校正錯誤" sound name "Blow"'
-			else
-				osascript -e 'display notification "Charge to 100% fail" with title "Battery Calibration Error" sound name "Blow"'
-			fi
+			osascript -e 'display notification "Charge to 100% fail" with title "Battery Calibration Error" sound name "Blow"'
 			log "Calibration Error: Charge to 100% fail"
 
 			print_calibrate_log $calibrate_time No $health_before %
@@ -2500,11 +2330,7 @@ if [[ "$action" == "calibrate" ]]; then
 		pid_child=""
 
 		ha_webhook "charge100_end" $(get_accurate_battery_percentage) $(get_voltage) $(get_battery_health)
-		if $is_TW; then
-			osascript -e 'display notification "已充電至 100% \n靜候一小時" with title "電池校正" sound name "Blow"'
-		else
-			osascript -e 'display notification "Calibration has charged to 100% \nWaiting for one hour" with title "Battery Calibration" sound name "Blow"'
-		fi
+		osascript -e 'display notification "Calibration has charged to 100% \nWaiting for one hour" with title "Battery Calibration" sound name "Blow"'
 		log "Calibration: Calibration has charged to 100%. Waiting for one hour"
 		log "Battery health $(get_battery_health)%, $(get_voltage)V, $(get_battery_temperature)°C"
 
@@ -2514,11 +2340,7 @@ if [[ "$action" == "calibrate" ]]; then
 		wait $!
 		ha_webhook "wait_1hr_done" $(get_accurate_battery_percentage) $(get_voltage) $(get_battery_health)
 		
-		if $is_TW; then
-			osascript -e 'display notification "電池已維持在 100% 一小時 \n開始放電至 15%" with title "電池校正" sound name "Blow"'
-		else
-			osascript -e 'display notification "Battery has been maintained at 100% for one hour \nStart discharging to 15%" with title "Battery Calibration" sound name "Blow"'
-		fi
+		osascript -e 'display notification "Battery has been maintained at 100% for one hour \nStart discharging to 15%" with title "Battery Calibration" sound name "Blow"'
 		log "Calibration: Battery has been maintained at 100% for one hour"
 		log "Calibration: Start discharging to 15%"
 		log "Battery health $(get_battery_health)%, $(get_voltage)V, $(get_battery_temperature)°C"
@@ -2530,11 +2352,7 @@ if [[ "$action" == "calibrate" ]]; then
 		wait $!
 		if [[ $? != 0 ]]; then
 			ha_webhook "err_discharge15"
-			if $is_TW; then
-				osascript -e 'display notification "未成功放電至 15%" with title "電池校正錯誤" sound name "Blow"'
-			else
-				osascript -e 'display notification "Discharge to 15% fail" with title "Battery Calibration Error" sound name "Blow"'
-			fi
+			osascript -e 'display notification "Discharge to 15% fail" with title "Battery Calibration Error" sound name "Blow"'
 			log "Calibration Error: Discharge to 15% fail"
 			rm $calibrate_pidfile 2>/dev/null
 			$battery_binary maintain recover # Recover old maintain status
@@ -2543,11 +2361,7 @@ if [[ "$action" == "calibrate" ]]; then
 		pid_child=""
 
 		ha_webhook "discharge15_end" $(get_accurate_battery_percentage) $(get_voltage) $(get_battery_health)
-		if $is_TW; then
-			osascript -e 'display notification "'"已放電至 15% \n開始充電至 $setting%"'" with title "電池校正" sound name "Blow"'
-		else
-			osascript -e 'display notification "'"Calibration has discharged to 15% \nStart charging to $setting%"'" with title "Battery Calibration" sound name "Blow"'
-		fi
+		osascript -e 'display notification "'"Calibration has discharged to 15% \nStart charging to $setting%"'" with title "Battery Calibration" sound name "Blow"'
 		log "Calibration: Calibration has discharged to 15%"
 		log "Calibration: Start charging to maintain percentage"
 		log "Battery health $(get_battery_health)%, $(get_voltage)V, $(get_battery_temperature)°C"
@@ -2558,11 +2372,7 @@ if [[ "$action" == "calibrate" ]]; then
 		wait $!
 		if [[ $? != 0 ]]; then
 			ha_webhook "err_charge_target"
-			if $is_TW; then
-				osascript -e 'display notification "'"未成功充電至 $setting%"'" with title "電池校正錯誤" sound name "Blow"'
-			else
-				osascript -e 'display notification "'"Charge to $setting% fail"'" with title "Battery Calibration Error" sound name "Blow"'
-			fi
+			osascript -e 'display notification "'"Charge to $setting% fail"'" with title "Battery Calibration Error" sound name "Blow"'
 			log "Calibration Error: Charge to $setting% fail"
 			rm $calibrate_pidfile 2>/dev/null
 			$battery_binary maintain recover # Recover old maintain status
@@ -2576,25 +2386,14 @@ if [[ "$action" == "calibrate" ]]; then
 	end_t=`date +%s`
 	diff=$((end_t-$start_t))
 	
-	if $is_TW; then
-		n_days=$(echo $((diff/(24*60*60)))  | awk '{if ( $1 > 0) print $1 " 天 "}')
-		n_hours=$(echo $(((diff/(60*60)) % 24)) | awk '{print $1 " 小時"}')
-		n_minutes=$(echo $(((diff/60) % 60)) | awk '{print $1 " 分"}')
-		n_seconds=$(echo $((diff % 60)) | awk '{print $1 " 秒"}')
-		osascript -e 'display notification "'"校正完成, 共花 $n_days$n_hours $n_minutes\n電池目前 $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C\n健康度 $(get_battery_health)%, 循環次數 $(get_cycle)"'" with title "電池校正" sound name "Blow"'
-		log "校正完成, 共花 $n_days$n_hours $n_minutes $n_seconds."
-		log "電池目前 $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C"
-		log "健康度 $(get_battery_health)%, 循環次數 $(get_cycle)"	
-	else
-		n_days=$(echo $((diff/(24*60*60)))  | awk '{if ( $1 > 0) print $1 " day "}')
-		n_hours=$(echo $(((diff/(60*60)) % 24)) | awk '{print $1 " hour"}')
-		n_minutes=$(echo $(((diff/60) % 60)) | awk '{print $1 " min"}')
-		n_seconds=$(echo $((diff % 60)) | awk '{print $1 " sec"}')
-		osascript -e 'display notification "'"Calibration completed in $n_days$n_hours $n_minutes.\nBattery $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C\nHealth $(get_battery_health)%, Cycle $(get_cycle)"'" with title "Battery Calibration" sound name "Blow"'
-		log "Calibration completed in $n_days$n_hours $n_minutes $n_seconds."
-		log "Battery $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C"
-		log "Health $(get_battery_health)%, Cycle $(get_cycle)"	
-	fi
+	n_days=$(echo $((diff/(24*60*60)))  | awk '{if ( $1 > 0) print $1 " day "}')
+	n_hours=$(echo $(((diff/(60*60)) % 24)) | awk '{print $1 " hour"}')
+	n_minutes=$(echo $(((diff/60) % 60)) | awk '{print $1 " min"}')
+	n_seconds=$(echo $((diff % 60)) | awk '{print $1 " sec"}')
+	osascript -e 'display notification "'"Calibration completed in $n_days$n_hours $n_minutes.\nBattery $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C\nHealth $(get_battery_health)%, Cycle $(get_cycle)"'" with title "Battery Calibration" sound name "Blow"'
+	log "Calibration completed in $n_days$n_hours $n_minutes $n_seconds."
+	log "Battery $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C"
+	log "Health $(get_battery_health)%, Cycle $(get_cycle)"	
 	
 	print_calibrate_log $calibrate_time Yes $health_before $(get_battery_health)%
 	echo "$n_days$n_hours $n_minutes $n_second" >> $calibrate_log
@@ -2630,11 +2429,7 @@ if [[ "$action" == "balance" ]]; then
 	echo $$ >$calibrate_pidfile
 
 	log "Balance: Starting cell balance (charge to 100%, hold 1.5hr, return to ${target_percentage}%)"
-	if $is_TW; then
-		osascript -e 'display notification "開始電芯平衡：充電至100%，維持1.5小時" with title "電池平衡" sound name "Blow"'
-	else
-		osascript -e 'display notification "Starting cell balance: charging to 100%, holding 1.5hr" with title "Battery Balance" sound name "Blow"'
-	fi
+	osascript -e 'display notification "Starting cell balance: charging to 100%, holding 1.5hr" with title "Battery Balance" sound name "Blow"'
 
 	# Suspend maintain and charge to 100%
 	$battery_binary maintain suspend
@@ -2642,22 +2437,14 @@ if [[ "$action" == "balance" ]]; then
 	wait $!
 	if [[ $? != 0 ]]; then
 		log "Balance Error: Charge to 100% failed"
-		if $is_TW; then
-			osascript -e 'display notification "充電至100%失敗" with title "電池平衡錯誤" sound name "Blow"'
-		else
-			osascript -e 'display notification "Charge to 100% failed" with title "Battery Balance Error" sound name "Blow"'
-		fi
+		osascript -e 'display notification "Charge to 100% failed" with title "Battery Balance Error" sound name "Blow"'
 		rm $calibrate_pidfile 2>/dev/null
 		$battery_binary maintain recover
 		exit 1
 	fi
 
 	log "Balance: Charged to 100%, holding for 1.5hr for BMS cell balancing"
-	if $is_TW; then
-		osascript -e 'display notification "已充電至100%，維持1.5小時進行電芯平衡" with title "電池平衡" sound name "Blow"'
-	else
-		osascript -e 'display notification "Charged to 100%, holding 1.5hr for cell balancing" with title "Battery Balance" sound name "Blow"'
-	fi
+	osascript -e 'display notification "Charged to 100%, holding 1.5hr for cell balancing" with title "Battery Balance" sound name "Blow"'
 
 	# Hold at 100% for 1.5 hours (5400 seconds) for BMS balancing
 	change_magsafe_led_color "green"
@@ -2665,11 +2452,7 @@ if [[ "$action" == "balance" ]]; then
 	wait $!
 
 	log "Balance: Hold complete, discharging to ${target_percentage}%"
-	if $is_TW; then
-		osascript -e 'display notification "'"平衡完成，放電至 ${target_percentage}%"'" with title "電池平衡" sound name "Blow"'
-	else
-		osascript -e 'display notification "'"Balance complete, discharging to ${target_percentage}%"'" with title "Battery Balance" sound name "Blow"'
-	fi
+	osascript -e 'display notification "'"Balance complete, discharging to ${target_percentage}%"'" with title "Battery Balance" sound name "Blow"'
 
 	# Discharge to maintain percentage
 	$battery_binary discharge $target_percentage &
@@ -2682,11 +2465,7 @@ if [[ "$action" == "balance" ]]; then
 	fi
 
 	log "Balance: Complete. Cells balanced, returning to normal maintain."
-	if $is_TW; then
-		osascript -e 'display notification "電芯平衡完成" with title "電池平衡" sound name "Blow"'
-	else
-		osascript -e 'display notification "Cell balance complete" with title "Battery Balance" sound name "Blow"'
-	fi
+	osascript -e 'display notification "Cell balance complete" with title "Battery Balance" sound name "Blow"'
 
 	rm $calibrate_pidfile 2>/dev/null
 	$battery_binary maintain recover
@@ -2697,73 +2476,42 @@ fi
 if [[ "$action" == "status" ]]; then
 
 	echo
-	if $is_TW; then
-		case $(get_charging_status) in
-			"0")
-				log "電池目前 $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C, 暫停充電";;
-			"1")
-				log "電池目前 $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C, 充電中";;
-			"2")
-				log "電池目前 $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C, 放電中";;
-		esac
-
-		log "電池健康度 $(get_battery_health)%, 循環次數 $(get_cycle)"
-	else
-		case $(get_charging_status) in
-			"0")
-				log "Battery at $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C, no charging";;
-			"1")
-				log "Battery at $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C, charging";;
-			"2")
-				log "Battery at $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C, discharging";;
-		esac
-		log "Battery health $(get_battery_health)%, Cycle $(get_cycle)"
-	fi
+	case $(get_charging_status) in
+		"0")
+			log "Battery at $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C, no charging";;
+		"1")
+			log "Battery at $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C, charging";;
+		"2")
+			log "Battery at $(get_accurate_battery_percentage)%, $(get_voltage)V, $(get_battery_temperature)°C, discharging";;
+	esac
+	log "Battery health $(get_battery_health)%, Cycle $(get_cycle)"
 
 	if [[ "$(maintain_is_running)" == "1" ]]; then
 		maintain_percentage=$(read_config maintain_percentage)
 		maintain_status=$(echo $(cat "$pidfile" 2>/dev/null) | awk '{print $2}')
 		if [[ "$maintain_status" == "active" ]]; then
-			if [[ $maintain_percentage ]]; then
+			if [[ "$(read_config longevity_mode)" == "enabled" ]]; then
+				log "Longevity mode active (65% sailing to 60%)"
+			elif [[ $maintain_percentage ]]; then
 				upper_limit=$(echo $maintain_percentage | awk '{print $1}')
 				lower_limit=$(echo $maintain_percentage | awk '{print $2}')
 				if [[ $upper_limit ]]; then
 					if ! valid_percentage "$lower_limit"; then
 						lower_limit=$((upper_limit-5))
 					fi
-					if $is_TW; then
-						maintain_level=$(echo "$upper_limit"% 滑行至 "$lower_limit"%)
-					else
-						maintain_level=$(echo "$upper_limit"% with sailing to "$lower_limit"%)
-					fi
+					maintain_level=$(echo "$upper_limit"% with sailing to "$lower_limit"%)
 				fi
-			fi
-			if $is_TW; then
-				log "您的電池最佳化維持在 $maintain_level"
-			else
 				log "Your battery is currently being maintained at $maintain_level"
 			fi
 		else
-			if $is_TW; then
-				if [[ "$(calibrate_is_running)" == "1" ]]; then
-					log "校正進行中，電池最佳化已暫停"
-				else
-					log "電池最佳化已暫停"
-				fi
+			if [[ "$(calibrate_is_running)" == "1" ]]; then
+				log "Calibration ongoing, maintain is suspended"
 			else
-				if [[ "$(calibrate_is_running)" == "1" ]]; then
-					log "Calibration ongoing, maintain is suspended"
-				else
-					log "Battery maintain is suspended" 
-				fi
+				log "Battery maintain is suspended" 
 			fi
 		fi
 	else
-		if $is_TW; then
-			log "電池最佳化已經停止運作"
-		else
-			log "Battery maintain is not running"
-		fi
+		log "Battery maintain is not running"
 	fi
 	
 	show_schedule
@@ -2878,13 +2626,8 @@ if [[ "$action" == "schedule" ]]; then
 	if [ $2 ]; then
 		if [ $2 == "disable" ]; then
 			if [[ $(read_config calibrate_schedule) ]]; then
-				if $is_TW; then
-					log "電池自動校正時程已暫停"
-					echo
-				else
-					log "Schedule disabled"
-					echo
-				fi
+				log "Schedule disabled"
+				echo
 				log "Disabling schedule at gui/$(id -u $USER)/com.apple-juice_schedule.app" >> $logfile
 				launchctl disable "gui/$(id -u $USER)/com.apple-juice_schedule.app"
 				launchctl unload "$schedule_path" 2> /dev/null
@@ -3264,19 +3007,11 @@ fi
 if [[ "$action" == "changelog" ]]; then
 
 	button_empty="                                                                                                                                                    "
-	if $is_TW; then
-		changelog=$(get_changelog CHANGELOG_TW)
-		version_new=$(get_version CHANGELOG_TW)
-		safe_version=$(escape_osascript "$version_new")
-		safe_changelog=$(escape_osascript "$changelog")
-		osascript -e 'display dialog "'"$safe_version 更新內容如下\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "OK"} default button 2 with icon note with title "apple-juice"' >> /dev/null
-	else
-		changelog=$(get_changelog CHANGELOG)
-		version_new=$(get_version CHANGELOG)
-		safe_version=$(escape_osascript "$version_new")
-		safe_changelog=$(escape_osascript "$changelog")
-		osascript -e 'display dialog "'"$safe_version changes inlude\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "OK"} default button 2 with icon note with title "apple-juice"' >> /dev/null
-	fi
+	changelog=$(get_changelog CHANGELOG)
+	version_new=$(get_version CHANGELOG)
+	safe_version=$(escape_osascript "$version_new")
+	safe_changelog=$(escape_osascript "$changelog")
+	osascript -e 'display dialog "'"$safe_version changes inlude\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "OK"} default button 2 with icon note with title "apple-juice"' >> /dev/null
 	exit 0
 fi
 
@@ -3288,19 +3023,6 @@ if [[ "$action"  == "version" ]]; then
 fi
 
 
-# Set language
-if [[ "$action"  == "language" ]]; then
-	if [[ "$2" == "tw" ]]; then
-		write_config language $2
-		log "顯示語言改為繁體中文"
-	elif [[ "$2" == "us" ]]; then
-		write_config language $2
-		log "Change language to English"
-	else
-		log "Specified language is not recognized. Only [tw, us] are allowed"
-	fi
-	exit 0
-fi
 
 # Get SSD status
 if [[ "$action"  == "ssd" ]]; then

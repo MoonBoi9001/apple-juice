@@ -1327,14 +1327,13 @@ if [[ "$action" == "visudo" ]]; then
 		setting=$USER
 	fi
 
-	# Set visudo tempfile ownership to current user
-	log "Setting visudo file permissions to $setting"
-	sudo chown -R $setting $configfolder
+	log "Setting up visudo for $setting"
 
-	# Write the visudo file to a tempfile
-	visudo_tmpfile="$configfolder/visudo.tmp"
-	sudo rm $visudo_tmpfile 2>/dev/null
-	echo -e "$visudoconfig" >$visudo_tmpfile
+	# Write the visudo file to a tempfile using mktemp (security best practice)
+	visudo_tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/apple-juice-visudo.XXXXXX")
+	trap 'rm -rf "$visudo_tmpdir"' EXIT
+	visudo_tmpfile="$visudo_tmpdir/visudo.tmp"
+	echo -e "$visudoconfig" >"$visudo_tmpfile"
 
 	# If the visudo file is the same (no error, exit code 0), set the permissions just
 	if sudo cmp $visudo_file $visudo_tmpfile &>/dev/null; then
@@ -1347,14 +1346,14 @@ if [[ "$action" == "visudo" ]]; then
 			sudo chmod 440 $visudo_file
 		fi
 
-		sudo rm $visudo_tmpfile 2>/dev/null
+		rm -rf "$visudo_tmpdir" 2>/dev/null
 		# exit because no changes are needed
 		exit 0
 
 	fi
 
 	# Validate that the visudo tempfile is valid
-	if sudo visudo -c -f $visudo_tmpfile &>/dev/null; then
+	if sudo visudo -c -f "$visudo_tmpfile" &>/dev/null; then
 
 		# If the visudo folder does not exist, make it
 		if ! test -d "$visudo_folder"; then
@@ -1362,10 +1361,7 @@ if [[ "$action" == "visudo" ]]; then
 		fi
 
 		# Copy the visudo file from tempfile to live location
-		sudo cp $visudo_tmpfile $visudo_file
-
-		# Delete tempfile
-		rm $visudo_tmpfile
+		sudo cp "$visudo_tmpfile" $visudo_file
 
 		# Set correct permissions on visudo file
 		sudo chmod 440 $visudo_file
@@ -1374,10 +1370,10 @@ if [[ "$action" == "visudo" ]]; then
 
 	else
 		echo "Error validating visudo file, this should never happen:"
-		sudo visudo -c -f $visudo_tmpfile
+		sudo visudo -c -f "$visudo_tmpfile"
 	fi
 
-	sudo rm $visudo_tmpfile 2>/dev/null
+	# Temp directory cleaned up by trap on EXIT
 	exit 0
 fi
 
@@ -1413,45 +1409,45 @@ if [[ "$action" == "update" ]]; then
 	else
 		github_link="https://raw.githubusercontent.com/MoonBoi9001/apple-juice/main"
 	fi
-	battery_new=$(echo $(curl -sSL "$github_link/apple-juice.sh"))
-	battery_new_version=$(echo $(get_parameter "$battery_new" "BATTERY_CLI_VERSION") | tr -d \")
-		
-	if [[ $battery_new == "404: Not Found" ]]; then
+	script_new=$(echo $(curl -sSL "$github_link/apple-juice.sh"))
+	version_new=$(echo $(get_parameter "$script_new" "BATTERY_CLI_VERSION") | tr -d \")
+
+	if [[ $script_new == "404: Not Found" ]]; then
 		log "Error: the specified update file is not available"
 		exit 1
 	fi
 
-	visudo_new_version=$(echo $(get_parameter "$battery_new" "BATTERY_VISUDO_VERSION") | tr -d \")
-	if [[ $battery_new_version == $BATTERY_CLI_VERSION ]] && [[ $visudo_new_version == $BATTERY_VISUDO_VERSION ]] && [[ "$setting" != "force" ]]; then
+	visudo_new_version=$(echo $(get_parameter "$script_new" "BATTERY_VISUDO_VERSION") | tr -d \")
+	if [[ $version_new == $BATTERY_CLI_VERSION ]] && [[ $visudo_new_version == $BATTERY_VISUDO_VERSION ]] && [[ "$setting" != "force" ]]; then
 		if $is_TW; then
-			osascript -e 'display dialog "'"$BATTERY_CLI_VERSION 已是最新版，不需要更新"'" buttons {"OK"} default button 1 giving up after 60 with icon note with title "BatteryOptimizer for MAC"' >> /dev/null
+			osascript -e 'display dialog "'"$BATTERY_CLI_VERSION 已是最新版，不需要更新"'" buttons {"OK"} default button 1 giving up after 60 with icon note with title "apple-juice"' >> /dev/null
 		else
-			osascript -e 'display dialog "'"Your version $BATTERY_CLI_VERSION is already the latest. No need to update."'" buttons {"OK"} default button 1 giving up after 60 with icon note with title "BatteryOptimizer for MAC"' >> /dev/null
+			osascript -e 'display dialog "'"Your version $BATTERY_CLI_VERSION is already the latest. No need to update."'" buttons {"OK"} default button 1 giving up after 60 with icon note with title "apple-juice"' >> /dev/null
 		fi		
 	else
 		button_empty="                                                                                                                                                    "
 		if $is_TW; then
 			changelog=$(get_changelog CHANGELOG_TW)
-			battery_new_version=$(get_version CHANGELOG_TW)
-			safe_version=$(escape_osascript "$battery_new_version")
+			version_new=$(get_version CHANGELOG_TW)
+			safe_version=$(escape_osascript "$version_new")
 			safe_changelog=$(escape_osascript "$changelog")
-			osascript -e 'display dialog "'"$safe_version 更新內容如下\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "繼續"} default button 2 with icon note with title "BatteryOptimizer for MAC"' >> /dev/null
+			osascript -e 'display dialog "'"$safe_version 更新內容如下\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "繼續"} default button 2 with icon note with title "apple-juice"' >> /dev/null
 		else
 			changelog=$(get_changelog CHANGELOG)
-			battery_new_version=$(get_version CHANGELOG)
-			safe_version=$(escape_osascript "$battery_new_version")
+			version_new=$(get_version CHANGELOG)
+			safe_version=$(escape_osascript "$version_new")
 			safe_changelog=$(escape_osascript "$changelog")
-			osascript -e 'display dialog "'"$safe_version changes include\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "Continue"} default button 2 with icon note with title "BatteryOptimizer for MAC"' >> /dev/null
+			osascript -e 'display dialog "'"$safe_version changes include\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "Continue"} default button 2 with icon note with title "apple-juice"' >> /dev/null
 		fi
 		if $is_TW; then
-			safe_version=$(escape_osascript "$battery_new_version")
-			answer="$(osascript -e 'display dialog "'"你現在要更新到$safe_version 嗎?"'" buttons {"立即更新", "跳過此版本"} default button 1 with icon note with title "BatteryOptimizer for MAC"' -e 'button returned of result')"
+			safe_version=$(escape_osascript "$version_new")
+			answer="$(osascript -e 'display dialog "'"你現在要更新到$safe_version 嗎?"'" buttons {"立即更新", "跳過此版本"} default button 1 with icon note with title "apple-juice"' -e 'button returned of result')"
 			if [[ $answer == "立即更新" ]]; then
 				answer="Yes"
 			fi
 		else
-			safe_version=$(escape_osascript "$battery_new_version")
-			answer="$(osascript -e 'display dialog "'"Do you want to update to version $safe_version now?"'" buttons {"Yes", "No"} default button 1 with icon note with title "BatteryOptimizer for MAC"' -e 'button returned of result')"
+			safe_version=$(escape_osascript "$version_new")
+			answer="$(osascript -e 'display dialog "'"Do you want to update to version $safe_version now?"'" buttons {"Yes", "No"} default button 1 with icon note with title "apple-juice"' -e 'button returned of result')"
 		fi
 		
 		if [[ $answer == "Yes" ]]; then
@@ -1932,9 +1928,9 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 			if [[ -z $updated ]] && [[ $new_version ]]; then
 				safe_new_version=$(escape_osascript "$new_version")
 				if $is_TW; then
-					osascript -e 'display notification "'"有新版$safe_new_version, 請在 Terminal 下輸入 \n\\\"battery update\\\" 更新"'" with title "BatteryOptimizer" sound name "Blow"'
+					osascript -e 'display notification "'"有新版$safe_new_version, 請在 Terminal 下輸入 \n\\\"apple-juice update\\\" 更新"'" with title "apple-juice" sound name "Blow"'
 				else
-					osascript -e 'display notification "'"New version $safe_new_version available \nUpdate with command \\\"battery update\\\""'" with title "BatteryOptimizer" sound name "Blow"'
+					osascript -e 'display notification "'"New version $safe_new_version available \nUpdate with command \\\"apple-juice update\\\""'" with title "apple-juice" sound name "Blow"'
 				fi
 				informed_version=$new_version
 				write_config informed_version $informed_version
@@ -2195,9 +2191,9 @@ if [[ "$action" == "maintain" ]]; then
 			if ! [[ $(ps aux | grep $PPID) =~ "setup.sh" ]] && ! [[ $(ps aux | grep $PPID) =~ "update.sh" ]]; then 
 				# Ask user if discharging right now unless this action is invoked by setup.sh
 				if $is_TW; then
-					answer="$(osascript -e 'display dialog "'"你要現在就放電到 $setting% 嗎?"'" buttons {"Yes", "No"} default button 1 giving up after 10 with icon note with title "BatteryOptimizer for MAC"' -e 'button returned of result')"
+					answer="$(osascript -e 'display dialog "'"你要現在就放電到 $setting% 嗎?"'" buttons {"Yes", "No"} default button 1 giving up after 10 with icon note with title "apple-juice"' -e 'button returned of result')"
 				else
-					answer="$(osascript -e 'display dialog "'"Do you want to discharge battery to $setting% now?"'" buttons {"Yes", "No"} default button 1 giving up after 10 with icon note with title "BatteryOptimizer for MAC"' -e 'button returned of result')"
+					answer="$(osascript -e 'display dialog "'"Do you want to discharge battery to $setting% now?"'" buttons {"Yes", "No"} default button 1 giving up after 10 with icon note with title "apple-juice"' -e 'button returned of result')"
 				fi
 				if [[ "$answer" == "Yes" ]] || [ -z $answer ]; then
 					log "Start discharging to $setting%"
@@ -3270,16 +3266,16 @@ if [[ "$action" == "changelog" ]]; then
 	button_empty="                                                                                                                                                    "
 	if $is_TW; then
 		changelog=$(get_changelog CHANGELOG_TW)
-		battery_new_version=$(get_version CHANGELOG_TW)
-		safe_version=$(escape_osascript "$battery_new_version")
+		version_new=$(get_version CHANGELOG_TW)
+		safe_version=$(escape_osascript "$version_new")
 		safe_changelog=$(escape_osascript "$changelog")
-		osascript -e 'display dialog "'"$safe_version 更新內容如下\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "OK"} default button 2 with icon note with title "BatteryOptimizer for MAC"' >> /dev/null
+		osascript -e 'display dialog "'"$safe_version 更新內容如下\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "OK"} default button 2 with icon note with title "apple-juice"' >> /dev/null
 	else
 		changelog=$(get_changelog CHANGELOG)
-		battery_new_version=$(get_version CHANGELOG)
-		safe_version=$(escape_osascript "$battery_new_version")
+		version_new=$(get_version CHANGELOG)
+		safe_version=$(escape_osascript "$version_new")
 		safe_changelog=$(escape_osascript "$changelog")
-		osascript -e 'display dialog "'"$safe_version changes inlude\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "OK"} default button 2 with icon note with title "BatteryOptimizer for MAC"' >> /dev/null
+		osascript -e 'display dialog "'"$safe_version changes inlude\n\n$safe_changelog"'" buttons {"'"$button_empty"'", "OK"} default button 2 with icon note with title "apple-juice"' >> /dev/null
 	fi
 	exit 0
 fi

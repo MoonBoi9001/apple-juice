@@ -77,25 +77,9 @@ binfolder=/usr/local/co.apple-juice
 configfolder=$HOME/.apple-juice
 config_file=$configfolder/config
 downloadfolder="$tempfolder/download"
-language_file=$configfolder/language.code
 github_link="https://raw.githubusercontent.com/MoonBoi9001/apple-juice/main"
 mkdir -p "$downloadfolder" || { echo "Failed to create temp directory"; exit 1; }
 
-lang=$(defaults read -g AppleLocale)
-if test -f $language_file; then
-	language=$(cat "$language_file" 2>/dev/null)
-	if [[ "$language" == "tw" ]]; then
-		is_TW=true
-	else
-		is_TW=false
-	fi
-else
-	if [[ $lang =~ "zh_TW" ]]; then
-		is_TW=true
-	else
-		is_TW=false
-	fi
-fi
 
 echo -e "🔋 Starting apple-juice update\n"
 
@@ -176,7 +160,6 @@ fi
 if [[ -z $(read_config calibrate_method) ]]; then write_config calibrate_method "$(cat "$configfolder/calibrate_method" 2>/dev/null)"; rm -rf "$configfolder/calibrate_method"; fi
 if [[ -z $(read_config calibrate_schedule) ]]; then write_config calibrate_schedule "$(cat "$configfolder/calibrate_schedule" 2>/dev/null)"; rm -rf "$configfolder/calibrate_schedule"; fi
 if [[ -z $(read_config informed_version) ]]; then write_config informed_version "$(cat "$configfolder/informed.version" 2>/dev/null)"; rm -rf "$configfolder/informed.version"; fi
-if [[ -z $(read_config language) ]]; then write_config language "$(cat "$configfolder/language.code" 2>/dev/null)"; rm -rf "$configfolder/language.code"; fi
 if [[ -z $(read_config maintain_percentage) ]]; then write_config maintain_percentage "$(cat "$configfolder/maintain.percentage" 2>/dev/null)"; rm -rf "$configfolder/maintain.percentage"; fi
 if [[ -z $(read_config clamshell_discharge) ]]; then write_config clamshell_discharge "$(cat "$configfolder/clamshell_discharge" 2>/dev/null)"; rm -rf "$configfolder/clamshell_discharge"; fi
 if [[ -z $(read_config webhookid) ]]; then write_config webhookid "$(cat "$configfolder/ha_webhook.id" 2>/dev/null)"; rm -rf "$configfolder/ha_webhook.id"; fi
@@ -200,8 +183,4 @@ sleep 1
 pkill -9 -f "$binfolder/apple-juice " 2>/dev/null
 apple-juice maintain recover
 
-if $is_TW; then
-	osascript -e 'display dialog "'"已更新至 $version_new"'" buttons {"完成"} default button 1 with icon note with title "apple-juice"'
-else
-	osascript -e 'display dialog "'"Updated to $version_new"'" buttons {"Done"} default button 1 with icon note with title "apple-juice"'
-fi
+osascript -e 'display dialog "'"Updated to $version_new"'" buttons {"Done"} default button 1 with icon note with title "apple-juice"'

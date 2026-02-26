@@ -157,7 +157,6 @@ write_config calibrate_method 1
 write_config calibrate_schedule
 write_config calibrate_next
 write_config informed_version $version
-write_config language
 write_config maintain_percentage
 write_config daily_last
 write_config clamshell_discharge
@@ -236,40 +235,20 @@ if [[ $(smc -k BCLM -r) == *"no data"* ]] && [[ $(smc -k CHWA -r) != *"no data"*
 	fi
 fi
 
-lang=$(defaults read -g AppleLocale)
-if [[ $lang =~ "zh_TW" ]]; then
-	is_TW=true
-else
-	is_TW=false
-fi
-
 # Enable notification permission for Script Editor
 open -a "Script Editor" $downloadfolder/dist/notification_permission.scpt
 
 notice="Installation completed.
 
-Script Editor is opened. Please manually click ▶️ in Script Editor for permission of notification,
+Script Editor is opened. Please manually click the play button in Script Editor for permission of notification,
 then setup your MAC system settings as follows
-1.	System Settings > Battery > Battery Health > click the ⓘ icon > toggle off \\\"Optimize Battery Charging\\\"
-2.	System Settings > Notifications > enable \\\"Allow notifications when mirroring or sharing\\\"
-3.	System Settings > Notifications > Applications > Script Editor > Choose \\\"Alerts\\\"
+1.	System Settings > Battery > Battery Health > click the i icon > toggle off \"Optimize Battery Charging\"
+2.	System Settings > Notifications > enable \"Allow notifications when mirroring or sharing\"
+3.	System Settings > Notifications > Applications > Script Editor > Choose \"Alerts\"
 If Script Editor is missing in the Notifications list, please reboot your Mac and check again.
 "
-notice_tw="安裝完成.
 
-工序指令編寫程序已打開, 請手動點擊工序指令編寫程序中的 ▶️  以允許通知.
-接著請調整 MAC 系統設定如下
-1.	系統設定 > 電池 > 電池健康度 > 點擊 ⓘ 圖標 > 關閉 \\\"最佳化電池充電\\\"
-2.	系統設定 > 通知 > 開啟 \\\"在鏡像輸出或共享顯示器時允許通知\\\"
-3.	系統設定 > 通知 > 應用程式通知 > 工序指令編寫程式 > 選擇 \\\"提示\\\"
-如果通知中沒有工序指令編寫程式，請重啟你的 Mac 再確認一次.
-"
-
-if $is_TW; then
-	osascript -e 'display dialog "'"$notice_tw"'" buttons {"完成"} default button 1 with icon note with title "apple-juice"'
-else
-	osascript -e 'display dialog "'"$notice"'" buttons {"Done"} default button 1 with icon note with title "apple-juice"'
-fi
+osascript -e 'display dialog "'"$notice"'" buttons {"Done"} default button 1 with icon note with title "apple-juice"'
 
 # Remove tempfiles
 #cd ../..

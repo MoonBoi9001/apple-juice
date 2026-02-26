@@ -170,10 +170,10 @@ if [[ $(smc -k BCLM -r) == *"no data"* ]] && [[ $(smc -k CHWA -r) != *"no data"*
 	sudo cp $downloadfolder/dist/.reboot $HOME/.reboot
 	sudo cp $downloadfolder/dist/.shutdown $HOME/.shutdown
 	sudo cp $downloadfolder/dist/shutdown.sh $binfolder/shutdown.sh
-	sudo cp $downloadfolder/dist/apple-juice.shutdown.plist $HOME/Library/LaunchAgents/apple-juice.shutdown.plist
-	launchctl enable "gui/$(id -u $USER)/com.apple-juice.shutdown.app"
-	launchctl unload "$HOME/Library/LaunchAgents/apple-juice.shutdown.plist" 2> /dev/null
-	launchctl load "$HOME/Library/LaunchAgents/apple-juice.shutdown.plist" 2> /dev/null
+	sudo cp $downloadfolder/dist/apple-juice_shutdown.plist $HOME/Library/LaunchAgents/apple-juice_shutdown.plist
+	launchctl enable "gui/$(id -u $USER)/com.apple-juice.shutdown"
+	launchctl unload "$HOME/Library/LaunchAgents/apple-juice_shutdown.plist" 2> /dev/null
+	launchctl load "$HOME/Library/LaunchAgents/apple-juice_shutdown.plist" 2> /dev/null
 	sudo chown -R $calling_user $HOME/.reboot
 	sudo chmod 755 $HOME/.reboot
 	sudo chmod +x $HOME/.reboot

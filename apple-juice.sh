@@ -131,9 +131,9 @@ Usage:
   apple-juice calibratelog
     show calibrate history
 
-  apple-juice.logs LINES[integer, optional]
+  apple-juice logs LINES[integer, optional]
     output logs of the apple-juice CLI and GUI
-    eg: apple-juice.logs 100
+    eg: apple-juice logs 100
 
   apple-juice language LANG[tw,us]
     eg: apple-juice language tw  # show status and notification in traditional Chinese if available
@@ -1505,7 +1505,7 @@ if [[ "$action" == "charge" ]]; then
 	for pid_running in $pids; do
 		# Validate PID and verify it's a charge process (Issue #6, #7, #25)
 		if [[ -n "$pid_running" ]] && [[ "$pid_running" =~ ^[0-9]+$ ]] && kill -0 "$pid_running" 2>/dev/null; then
-			if ps -p "$pid_running" -o args= 2>/dev/null | grep -q "[b]attery charge"; then
+			if ps -p "$pid_running" -o args= 2>/dev/null | grep -q "[a]pple-juice charge"; then
 				kill "$pid_running" 2>/dev/null
 			fi
 		fi
@@ -1525,7 +1525,7 @@ if [[ "$action" == "charge" ]]; then
 	for pid_running in $pids; do
 		# Validate PID and verify it's a discharge process (Issue #6, #7, #25)
 		if [[ -n "$pid_running" ]] && [[ "$pid_running" =~ ^[0-9]+$ ]] && kill -0 "$pid_running" 2>/dev/null; then
-			if ps -p "$pid_running" -o args= 2>/dev/null | grep -q "[b]attery discharge"; then
+			if ps -p "$pid_running" -o args= 2>/dev/null | grep -q "[a]pple-juice discharge"; then
 				kill "$pid_running" 2>/dev/null
 			fi
 		fi
@@ -1620,7 +1620,7 @@ if [[ "$action" == "discharge" ]]; then
 	for pid_running in $pids; do
 		# Validate PID and verify it's a discharge process (Issue #6, #7, #25)
 		if [[ -n "$pid_running" ]] && [[ "$pid_running" =~ ^[0-9]+$ ]] && kill -0 "$pid_running" 2>/dev/null; then
-			if ps -p "$pid_running" -o args= 2>/dev/null | grep -q "[b]attery discharge"; then
+			if ps -p "$pid_running" -o args= 2>/dev/null | grep -q "[a]pple-juice discharge"; then
 				kill "$pid_running" 2>/dev/null
 			fi
 		fi
@@ -1645,7 +1645,7 @@ if [[ "$action" == "discharge" ]]; then
 	for pid_running in $pids; do
 		# Validate PID and verify it's a charge process (Issue #6, #7, #25)
 		if [[ -n "$pid_running" ]] && [[ "$pid_running" =~ ^[0-9]+$ ]] && kill -0 "$pid_running" 2>/dev/null; then
-			if ps -p "$pid_running" -o args= 2>/dev/null | grep -q "[b]attery charge"; then
+			if ps -p "$pid_running" -o args= 2>/dev/null | grep -q "[a]pple-juice charge"; then
 				kill "$pid_running" 2>/dev/null
 			fi
 		fi

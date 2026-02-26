@@ -117,8 +117,8 @@ if [[ ! -d "$binfolder" ]]; then
 fi
 
 script_local=$(echo $(cat $binfolder/apple-juice 2>/dev/null))
-version_local=$(echo $(get_parameter "$script_local" "BATTERY_CLI_VERSION") | tr -d \")
-visudo_version_local=$(echo $(get_parameter "$script_local" "BATTERY_VISUDO_VERSION") | tr -d \")
+version_local=$(echo $(get_parameter "$script_local" "APPLE_JUICE_VERSION") | tr -d \")
+visudo_version_local=$(echo $(get_parameter "$script_local" "APPLE_JUICE_VISUDO_VERSION") | tr -d \")
 
 # Download and install latest version
 echo "[ 1 ] Downloading latest apple-juice version"
@@ -161,8 +161,8 @@ if [[ -f "$binfolder/shutdown.sh" ]]; then
 fi
 
 script_new=$(echo $(cat $binfolder/apple-juice 2>/dev/null))
-version_new=$(echo $(get_parameter "$script_new" "BATTERY_CLI_VERSION") | tr -d \")
-visudo_version_new=$(echo $(get_parameter "$script_new" "BATTERY_VISUDO_VERSION") | tr -d \")
+version_new=$(echo $(get_parameter "$script_new" "APPLE_JUICE_VERSION") | tr -d \")
+visudo_version_new=$(echo $(get_parameter "$script_new" "APPLE_JUICE_VISUDO_VERSION") | tr -d \")
 
 echo "[ 3 ] Setting up visudo declarations"
 if [[ $visudo_version_new != $visudo_version_local ]]; then

@@ -18,7 +18,14 @@ PATH=/usr/local/co.apple-juice:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/b
 ## ###############
 ## Variables
 ## ###############
-binfolder=/usr/local/co.apple-juice
+# Auto-detect installation directory (supports both curl and brew installs)
+# Resolve symlinks to get the actual script location
+script_path="$(readlink -f "$0" 2>/dev/null || realpath "$0" 2>/dev/null || echo "$0")"
+binfolder="$(dirname "$script_path")"
+# Fall back to standard location if detection fails
+if [[ ! -x "$binfolder/smc" ]]; then
+    binfolder=/usr/local/co.apple-juice
+fi
 visudo_folder=/private/etc/sudoers.d
 visudo_file=${visudo_folder}/apple-juice
 configfolder=$HOME/.apple-juice

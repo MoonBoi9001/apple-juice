@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.2
+
+### Fixed
+- Create config file automatically if missing (fixes brew installs)
+
 ## v1.0.1
 
 ### Fixed

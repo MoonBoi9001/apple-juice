@@ -76,7 +76,7 @@ trap 'rm -rf "$tempfolder"' EXIT
 binfolder=/usr/local/co.apple-juice
 configfolder=$HOME/.apple-juice
 config_file=$configfolder/config
-downloadfolder="$tempfolder/battery"
+downloadfolder="$tempfolder/download"
 language_file=$configfolder/language.code
 github_link="https://raw.githubusercontent.com/MoonBoi9001/apple-juice/main"
 mkdir -p "$downloadfolder" || { echo "Failed to create temp directory"; exit 1; }
@@ -116,15 +116,15 @@ if [[ ! -d "$binfolder" ]]; then
 	sudo install -d -m 755 -o root -g wheel "$binfolder"
 fi
 
-battery_local=$(echo $(cat $binfolder/apple-juice 2>/dev/null))
-battery_version_local=$(echo $(get_parameter "$battery_local" "BATTERY_CLI_VERSION") | tr -d \")
-visudo_version_local=$(echo $(get_parameter "$battery_local" "BATTERY_VISUDO_VERSION") | tr -d \")
+script_local=$(echo $(cat $binfolder/apple-juice 2>/dev/null))
+version_local=$(echo $(get_parameter "$script_local" "BATTERY_CLI_VERSION") | tr -d \")
+visudo_version_local=$(echo $(get_parameter "$script_local" "BATTERY_VISUDO_VERSION") | tr -d \")
 
 # Download and install latest version
 echo "[ 1 ] Downloading latest apple-juice version"
 update_branch="main"
 in_zip_folder_name="apple-juice-$update_branch"
-downloadfolder="$tempfolder/battery"
+downloadfolder="$tempfolder/download"
 rm -rf $downloadfolder
 mkdir -p $downloadfolder
 curl -sSL -o $downloadfolder/repo.zip "https://github.com/MoonBoi9001/apple-juice/archive/refs/heads/$update_branch.zip"
@@ -133,7 +133,7 @@ cp -r $downloadfolder/$in_zip_folder_name/* $downloadfolder
 rm $downloadfolder/repo.zip
 
 # update smc for intel macbook if version is less than v2.0.14
-if [[ 10#$(version_number $battery_version_local) -lt 10#$(version_number "v2.0.14") ]]; then
+if [[ 10#$(version_number $version_local) -lt 10#$(version_number "v2.0.14") ]]; then
 	if [[ $(sysctl -n machdep.cpu.brand_string) == *"Intel"* ]]; then # check CPU type
 		if [[ ! -d "$binfolder" ]]; then
 			sudo install -d -m 755 -o root -g wheel "$binfolder"
@@ -160,9 +160,9 @@ if [[ -f "$binfolder/shutdown.sh" ]]; then
 	sudo chown -h root:wheel /usr/local/bin/shutdown.sh
 fi
 
-battery_new=$(echo $(cat $binfolder/apple-juice 2>/dev/null))
-battery_version_new=$(echo $(get_parameter "$battery_new" "BATTERY_CLI_VERSION") | tr -d \")
-visudo_version_new=$(echo $(get_parameter "$battery_new" "BATTERY_VISUDO_VERSION") | tr -d \")
+script_new=$(echo $(cat $binfolder/apple-juice 2>/dev/null))
+version_new=$(echo $(get_parameter "$script_new" "BATTERY_CLI_VERSION") | tr -d \")
+visudo_version_new=$(echo $(get_parameter "$script_new" "BATTERY_VISUDO_VERSION") | tr -d \")
 
 echo "[ 3 ] Setting up visudo declarations"
 if [[ $visudo_version_new != $visudo_version_local ]]; then
@@ -192,7 +192,7 @@ echo -e "\n🎉 apple-juice updated.\n"
 
 # Restart apple-juice maintain process
 echo -e "Restarting apple-juice maintain.\n"
-write_config informed_version "$battery_version_new"
+write_config informed_version "$version_new"
 
 # Try graceful shutdown first, then force kill (Issue #28)
 pkill -f "$binfolder/apple-juice " 2>/dev/null
@@ -201,7 +201,7 @@ pkill -9 -f "$binfolder/apple-juice " 2>/dev/null
 apple-juice maintain recover
 
 if $is_TW; then
-	osascript -e 'display dialog "'"已更新至 $battery_version_new"'" buttons {"完成"} default button 1 with icon note with title "apple-juice"'
+	osascript -e 'display dialog "'"已更新至 $version_new"'" buttons {"完成"} default button 1 with icon note with title "apple-juice"'
 else
-	osascript -e 'display dialog "'"Updated to $battery_version_new"'" buttons {"Done"} default button 1 with icon note with title "apple-juice"'
+	osascript -e 'display dialog "'"Updated to $version_new"'" buttons {"Done"} default button 1 with icon note with title "apple-juice"'
 fi

@@ -75,7 +75,7 @@ fi
 # Note: github names zips by <reponame>-<branchname>.replace( '/', '-' )
 update_branch="2.0.27"
 in_zip_folder_name="apple-juice-$update_branch"
-downloadfolder="$tempfolder/battery"
+downloadfolder="$tempfolder/download"
 echo "[ 2 ] Downloading latest version of apple-juice"
 rm -rf "$downloadfolder"
 mkdir -p "$downloadfolder"
@@ -276,4 +276,4 @@ fi
 #echo "[ Final ] Removing temp folder $tempfolder"
 # Note: tempfolder is cleaned up by trap on EXIT
 
-#echo -e "\n🎉 Battery tool installed. Type \"battery help\" for instructions.\n"
+#echo -e "\n🎉 apple-juice installed. Type \"apple-juice help\" for instructions.\n"

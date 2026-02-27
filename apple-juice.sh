@@ -1702,6 +1702,7 @@ if [[ "$action" == "maintain_synchronous" ]]; then
     	echo "Time Capacity Voltage Temperature Health Cycle" | awk '{printf "%-10s, %9s, %9s, %12s, %9s, %9s\n", $1, $2, $3, $4, $5, $6}' > $daily_log
 	fi
 	check_update_timeout=$((now + (3*24*60*60))) # first check update 3 days later
+	update_backoff=3600 # initial backoff of 1 hour on update check failure
 	cell_balance_check_timeout=$((now + (60*60))) # check cell balance every hour in longevity mode
 	cell_voltage_warning_shown=0
 
@@ -1815,20 +1816,29 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 			fi
 		fi
 
-		# check if there is update version
+		# check if there is update version (with timeout to avoid blocking on slow networks)
 		if [[ $(date +%s) -gt $check_update_timeout ]]; then
-			updated="$(curl -sS $github_link/apple-juice.sh | grep "$informed_version")"
-			new_version="$(curl -sS $github_link/apple-juice.sh | grep "APPLE_JUICE_VERSION=")"
-			new_version="$(echo $new_version | awk '{print $1}')"
-			new_version=$(echo ${new_version/"APPLE_JUICE_VERSION="} | tr -d \")
-			
-			if [[ -z $updated ]] && [[ $new_version ]]; then
-				safe_new_version=$(escape_osascript "$new_version")
-				osascript -e 'display notification "'"New version $safe_new_version available \nUpdate with command \\\"apple-juice update\\\""'" with title "apple-juice" sound name "Blow"'
-				informed_version=$new_version
-				write_config informed_version $informed_version
+			update_tmp="/tmp/apple-juice-update-$$"
+
+			if curl -sS --max-time 10 -o "$update_tmp" "$github_link/apple-juice.sh" 2>/dev/null && [[ -s "$update_tmp" ]]; then
+				new_version="$(grep "^APPLE_JUICE_VERSION=" "$update_tmp" | head -1 | cut -d= -f2 | tr -d '"')"
+
+				# notify if new version differs from what we last informed about
+				if [[ -n "$new_version" ]] && [[ "$new_version" != "$informed_version" ]]; then
+					safe_new_version=$(escape_osascript "$new_version")
+					osascript -e 'display notification "'"New version $safe_new_version available \nUpdate with command \\\"apple-juice update\\\""'" with title "apple-juice" sound name "Blow"'
+					informed_version=$new_version
+					write_config informed_version "$informed_version"
+				fi
+				check_update_timeout=$((`date +%s` + (24*60*60))) # success: check again in 24h
+				update_backoff=3600 # reset backoff on success
+			else
+				# network failure: exponential backoff (1h -> 2h -> 4h -> 8h -> cap at 24h)
+				check_update_timeout=$((`date +%s` + $update_backoff))
+				update_backoff=$((update_backoff * 2))
+				[[ $update_backoff -gt 86400 ]] && update_backoff=86400
 			fi
-			check_update_timeout=$((`date +%s` + (24*60*60))) # check update one time each day
+			rm -f "$update_tmp"
 		fi
 
 		# Turn off AlDente if it is running to avoid conflict

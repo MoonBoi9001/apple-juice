@@ -1892,6 +1892,7 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 			((consecutive_failures++))
 			if [[ $consecutive_failures -gt 10 ]]; then
 				log "Error: Too many consecutive failures reading battery percentage, exiting maintain loop"
+				enable_charging
 				exit 1
 			fi
 			sleep 60

@@ -22,17 +22,14 @@
 # See: https://github.com/actuallymentor/battery/issues/443
 #
 
-function write_config() { # write $val to $name in config_file
-	name=$1
-	val=$2
-	if test -f "$config_file"; then
-		config=$(cat "$config_file" 2>/dev/null)
-		name_loc=$(echo "$config" | grep -n "$name" | cut -d: -f1)
-		if [[ $name_loc ]]; then
-			sed -i '' ''"$name_loc"'s/.*/'"$name"' = '"$val"'/' "$config_file"
-		else # not exist yet
-			echo "$name = $val" >> "$config_file"
-		fi
+function write_config() { # write $val to $configfolder/$name file
+	local name=$1
+	local val=$2
+	mkdir -p "$configfolder"
+	if [[ -n "$val" ]]; then
+		echo "$val" > "$configfolder/$name"
+	else
+		rm -f "$configfolder/$name"
 	fi
 }
 
@@ -51,7 +48,6 @@ binfolder="$EXPECTED_BINFOLDER"
 # Set script value
 calling_user=${1:-"$USER"}
 configfolder=/Users/$calling_user/.apple-juice
-config_file=$configfolder/config
 pidfile=$configfolder/apple-juice.pid
 logfile=$configfolder/apple-juice.log
 sleepwatcher_log=$configfolder/sleepwatcher.log
@@ -150,9 +146,9 @@ sudo chown -hR "$calling_user" "$configfolder"
 
 # Run apple-juice maintain with default percentage 80
 echo "[ 7 ] Set default maintain percentage to 80%, can be changed afterwards"
-# Setup configuration file
+# Setup configuration
 version=$(echo $(apple-juice version))
-touch "$config_file"
+mkdir -p "$configfolder"
 write_config calibrate_method 1
 write_config calibrate_schedule
 write_config calibrate_next

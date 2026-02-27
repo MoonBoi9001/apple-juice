@@ -29,7 +29,6 @@ fi
 visudo_folder=/private/etc/sudoers.d
 visudo_file=${visudo_folder}/apple-juice
 configfolder=$HOME/.apple-juice
-config_file=$configfolder/config
 pidfile=$configfolder/apple-juice.pid
 logfile=$configfolder/apple-juice.log
 pid_sig=$configfolder/sig.pid
@@ -48,6 +47,18 @@ github_link="https://raw.githubusercontent.com/MoonBoi9001/apple-juice/main"
 
 # Create config folder if needed
 mkdir -p "$configfolder" || { echo "Failed to create config directory"; exit 1; }
+
+# Migrate old single-file config to file-per-key format
+function migrate_config() {
+	local old_config="$configfolder/config"
+	if [[ -f "$old_config" ]]; then
+		while IFS=' = ' read -r key val; do
+			[[ -n "$key" && "$key" != "#"* ]] && echo "$val" > "$configfolder/$key"
+		done < "$old_config"
+		mv "$old_config" "$old_config.migrated"
+	fi
+}
+migrate_config
 
 # create logfile if needed
 touch $logfile
@@ -1208,36 +1219,19 @@ function read_smc_hex() { # read smc hex value
 	fi
 }
 
-function read_config() { # read $val of $name in config_file
-	name=$1
-	val=
-	if test -f $config_file; then
-		while read -r "line" || [[ -n "$line" ]]; do
-			if [[ "$line" == "$name = "* ]]; then
-				val=${line#*'= '}
-				break
-			fi
-		done < $config_file
-	fi
-	echo $val
+function read_config() { # read value from $configfolder/$name file
+	local name=$1
+	cat "$configfolder/$name" 2>/dev/null
 }
 
-function write_config() { # write $val to $name in config_file
-	name=$1
-	val=$2
-	# Create config file if it doesn't exist
-	if ! test -f "$config_file"; then
-		touch "$config_file"
-	fi
-	config=$(cat "$config_file" 2>/dev/null)
-	name_loc=$(echo "$config" | grep -n "$name" | cut -d: -f1)
-	if [[ $name_loc ]]; then
-		# Escape sed special characters in both name and value
-		name_escaped=$(printf '%s\n' "$name" | sed 's/[&/\]/\\&/g')
-		val_escaped=$(printf '%s\n' "$val" | sed 's/[&/\]/\\&/g')
-		sed -i '' "${name_loc}s/.*/${name_escaped} = ${val_escaped}/" "$config_file"
-	else # not exist yet
-		echo "$name = $val" >> "$config_file"
+function write_config() { # write $val to $configfolder/$name file
+	local name=$1
+	local val=$2
+	mkdir -p "$configfolder"
+	if [[ -n "$val" ]]; then
+		echo "$val" > "$configfolder/$name"
+	else
+		rm -f "$configfolder/$name"
 	fi
 }
 
@@ -1262,6 +1256,16 @@ fi
 # Validate action
 if ! valid_action "$action"; then
     exit 1
+fi
+
+# Startup recovery check - re-enable charging if left disabled by crashed daemon
+# Skip this check for maintain_synchronous (which intentionally disables charging)
+# and for internal daemon actions that shouldn't trigger recovery
+if [[ "$action" != "maintain_synchronous" ]] && [[ "$action" != "create_daemon" ]] && [[ "$action" != "status_csv" ]]; then
+    if [[ "$(get_smc_charging_status)" == "disabled" ]] && [[ "$(maintain_is_running)" == "0" ]]; then
+        log "Warning: Charging was left disabled by a previous crash, re-enabling"
+        enable_charging
+    fi
 fi
 
 # Visudo message
@@ -1702,6 +1706,7 @@ if [[ "$action" == "maintain_synchronous" ]]; then
     	echo "Time Capacity Voltage Temperature Health Cycle" | awk '{printf "%-10s, %9s, %9s, %12s, %9s, %9s\n", $1, $2, $3, $4, $5, $6}' > $daily_log
 	fi
 	check_update_timeout=$((now + (3*24*60*60))) # first check update 3 days later
+	update_backoff=3600 # initial backoff of 1 hour on update check failure
 	cell_balance_check_timeout=$((now + (60*60))) # check cell balance every hour in longevity mode
 	cell_voltage_warning_shown=0
 
@@ -1717,6 +1722,15 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 	change_magsafe_led_color "auto"
 
 	consecutive_failures=0
+
+	# Cleanup handler for unexpected termination - re-enable charging before exit
+	function maintain_cleanup() {
+		log "Maintain daemon terminated, re-enabling charging"
+		enable_charging
+		rm -f "$pidfile"
+		exit 1
+	}
+	trap maintain_cleanup SIGINT SIGTERM
 	trap ack_SIG SIGUSR1
 	while true; do
 		if [ "$maintain_status" != "$pre_maintain_status" ]; then # update state to state_file
@@ -1815,20 +1829,29 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 			fi
 		fi
 
-		# check if there is update version
+		# check if there is update version (with timeout to avoid blocking on slow networks)
 		if [[ $(date +%s) -gt $check_update_timeout ]]; then
-			updated="$(curl -sS $github_link/apple-juice.sh | grep "$informed_version")"
-			new_version="$(curl -sS $github_link/apple-juice.sh | grep "APPLE_JUICE_VERSION=")"
-			new_version="$(echo $new_version | awk '{print $1}')"
-			new_version=$(echo ${new_version/"APPLE_JUICE_VERSION="} | tr -d \")
-			
-			if [[ -z $updated ]] && [[ $new_version ]]; then
-				safe_new_version=$(escape_osascript "$new_version")
-				osascript -e 'display notification "'"New version $safe_new_version available \nUpdate with command \\\"apple-juice update\\\""'" with title "apple-juice" sound name "Blow"'
-				informed_version=$new_version
-				write_config informed_version $informed_version
+			update_tmp="/tmp/apple-juice-update-$$"
+
+			if curl -sS --max-time 10 -o "$update_tmp" "$github_link/apple-juice.sh" 2>/dev/null && [[ -s "$update_tmp" ]]; then
+				new_version="$(grep "^APPLE_JUICE_VERSION=" "$update_tmp" | head -1 | cut -d= -f2 | tr -d '"')"
+
+				# notify if new version differs from what we last informed about
+				if [[ -n "$new_version" ]] && [[ "$new_version" != "$informed_version" ]]; then
+					safe_new_version=$(escape_osascript "$new_version")
+					osascript -e 'display notification "'"New version $safe_new_version available \nUpdate with command \\\"apple-juice update\\\""'" with title "apple-juice" sound name "Blow"'
+					informed_version=$new_version
+					write_config informed_version "$informed_version"
+				fi
+				check_update_timeout=$((`date +%s` + (24*60*60))) # success: check again in 24h
+				update_backoff=3600 # reset backoff on success
+			else
+				# network failure: exponential backoff (1h -> 2h -> 4h -> 8h -> cap at 24h)
+				check_update_timeout=$((`date +%s` + $update_backoff))
+				update_backoff=$((update_backoff * 2))
+				[[ $update_backoff -gt 86400 ]] && update_backoff=86400
 			fi
-			check_update_timeout=$((`date +%s` + (24*60*60))) # check update one time each day
+			rm -f "$update_tmp"
 		fi
 
 		# Turn off AlDente if it is running to avoid conflict
@@ -1882,6 +1905,7 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 			((consecutive_failures++))
 			if [[ $consecutive_failures -gt 10 ]]; then
 				log "Error: Too many consecutive failures reading battery percentage, exiting maintain loop"
+				enable_charging
 				exit 1
 			fi
 			sleep 60

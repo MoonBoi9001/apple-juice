@@ -36,34 +36,19 @@ function get_parameter() { # get parameter value from configuration file. the fo
     fi
 }
 
-function read_config() { # read $val of $name in config_file
-	name=$1
-	val=
-	if test -f $config_file; then
-		while read -r "line" || [[ -n "$line" ]]; do
-			if [[ "$line" == "$name = "* ]]; then
-				val=${line#*'= '}
-				break
-			fi
-		done < $config_file
-	fi
-	echo $val
+function read_config() { # read value from $configfolder/$name file
+	local name=$1
+	cat "$configfolder/$name" 2>/dev/null
 }
 
-function write_config() { # write $val to $name in config_file
-	name=$1
-	val=$2
-	if test -f "$config_file"; then
-		config=$(cat "$config_file" 2>/dev/null)
-		name_loc=$(echo "$config" | grep -n "$name" | cut -d: -f1)
-		if [[ $name_loc ]]; then
-			# Escape sed special characters in both name and value
-			name_escaped=$(printf '%s\n' "$name" | sed 's/[&/\]/\\&/g')
-			val_escaped=$(printf '%s\n' "$val" | sed 's/[&/\]/\\&/g')
-			sed -i '' "${name_loc}s/.*/${name_escaped} = ${val_escaped}/" "$config_file"
-		else # not exist yet
-			echo "$name = $val" >> "$config_file"
-		fi
+function write_config() { # write $val to $configfolder/$name file
+	local name=$1
+	local val=$2
+	mkdir -p "$configfolder"
+	if [[ -n "$val" ]]; then
+		echo "$val" > "$configfolder/$name"
+	else
+		rm -f "$configfolder/$name"
 	fi
 }
 
@@ -75,7 +60,6 @@ tempfolder=$(mktemp -d "${TMPDIR:-/tmp}/apple-juice-update.XXXXXX")
 trap 'rm -rf "$tempfolder"' EXIT
 binfolder=/usr/local/co.apple-juice
 configfolder=$HOME/.apple-juice
-config_file=$configfolder/config
 downloadfolder="$tempfolder/download"
 github_link="https://raw.githubusercontent.com/MoonBoi9001/apple-juice/main"
 mkdir -p "$downloadfolder" || { echo "Failed to create temp directory"; exit 1; }
@@ -154,20 +138,27 @@ if [[ $visudo_version_new != $visudo_version_local ]]; then
 fi
 
 echo "[ 4 ] Setting up configuration"
-if ! test -f $config_file; then # config file not exist
-	touch $config_file
+mkdir -p "$configfolder"
+
+# Migrate old single-file config to file-per-key format
+old_config="$configfolder/config"
+if [[ -f "$old_config" ]]; then
+	while IFS=' = ' read -r key val; do
+		[[ -n "$key" && "$key" != "#"* ]] && echo "$val" > "$configfolder/$key"
+	done < "$old_config"
+	mv "$old_config" "$old_config.migrated"
 fi
+
+# Migrate old config file locations to new names
 if [[ -z $(read_config calibrate_method) ]]; then write_config calibrate_method "$(cat "$configfolder/calibrate_method" 2>/dev/null)"; rm -rf "$configfolder/calibrate_method"; fi
 if [[ -z $(read_config calibrate_schedule) ]]; then write_config calibrate_schedule "$(cat "$configfolder/calibrate_schedule" 2>/dev/null)"; rm -rf "$configfolder/calibrate_schedule"; fi
 if [[ -z $(read_config informed_version) ]]; then write_config informed_version "$(cat "$configfolder/informed.version" 2>/dev/null)"; rm -rf "$configfolder/informed.version"; fi
 if [[ -z $(read_config maintain_percentage) ]]; then write_config maintain_percentage "$(cat "$configfolder/maintain.percentage" 2>/dev/null)"; rm -rf "$configfolder/maintain.percentage"; fi
 if [[ -z $(read_config clamshell_discharge) ]]; then write_config clamshell_discharge "$(cat "$configfolder/clamshell_discharge" 2>/dev/null)"; rm -rf "$configfolder/clamshell_discharge"; fi
 if [[ -z $(read_config webhookid) ]]; then write_config webhookid "$(cat "$configfolder/ha_webhook.id" 2>/dev/null)"; rm -rf "$configfolder/ha_webhook.id"; fi
-if test -f "$configfolder/sig"; then rm -rf "$configfolder/sig"; fi
-if test -f "$configfolder/state"; then rm -rf "$configfolder/state"; fi
-if test -f "$configfolder/language.code"; then rm -rf "$configfolder/language.code"; fi
-# Remove deprecated language config (Chinese support removed)
-sed -i '' '/^language = /d' "$config_file" 2>/dev/null
+
+# Clean up deprecated config files
+rm -f "$configfolder/sig" "$configfolder/state" "$configfolder/language.code" "$configfolder/language"
 
 # Remove tempfiles
 cd

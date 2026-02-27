@@ -29,7 +29,6 @@ fi
 visudo_folder=/private/etc/sudoers.d
 visudo_file=${visudo_folder}/apple-juice
 configfolder=$HOME/.apple-juice
-config_file=$configfolder/config
 pidfile=$configfolder/apple-juice.pid
 logfile=$configfolder/apple-juice.log
 pid_sig=$configfolder/sig.pid
@@ -48,6 +47,18 @@ github_link="https://raw.githubusercontent.com/MoonBoi9001/apple-juice/main"
 
 # Create config folder if needed
 mkdir -p "$configfolder" || { echo "Failed to create config directory"; exit 1; }
+
+# Migrate old single-file config to file-per-key format
+function migrate_config() {
+	local old_config="$configfolder/config"
+	if [[ -f "$old_config" ]]; then
+		while IFS=' = ' read -r key val; do
+			[[ -n "$key" && "$key" != "#"* ]] && echo "$val" > "$configfolder/$key"
+		done < "$old_config"
+		mv "$old_config" "$old_config.migrated"
+	fi
+}
+migrate_config
 
 # create logfile if needed
 touch $logfile
@@ -1208,36 +1219,19 @@ function read_smc_hex() { # read smc hex value
 	fi
 }
 
-function read_config() { # read $val of $name in config_file
-	name=$1
-	val=
-	if test -f $config_file; then
-		while read -r "line" || [[ -n "$line" ]]; do
-			if [[ "$line" == "$name = "* ]]; then
-				val=${line#*'= '}
-				break
-			fi
-		done < $config_file
-	fi
-	echo $val
+function read_config() { # read value from $configfolder/$name file
+	local name=$1
+	cat "$configfolder/$name" 2>/dev/null
 }
 
-function write_config() { # write $val to $name in config_file
-	name=$1
-	val=$2
-	# Create config file if it doesn't exist
-	if ! test -f "$config_file"; then
-		touch "$config_file"
-	fi
-	config=$(cat "$config_file" 2>/dev/null)
-	name_loc=$(echo "$config" | grep -n "$name" | cut -d: -f1)
-	if [[ $name_loc ]]; then
-		# Escape sed special characters in both name and value
-		name_escaped=$(printf '%s\n' "$name" | sed 's/[&/\]/\\&/g')
-		val_escaped=$(printf '%s\n' "$val" | sed 's/[&/\]/\\&/g')
-		sed -i '' "${name_loc}s/.*/${name_escaped} = ${val_escaped}/" "$config_file"
-	else # not exist yet
-		echo "$name = $val" >> "$config_file"
+function write_config() { # write $val to $configfolder/$name file
+	local name=$1
+	local val=$2
+	mkdir -p "$configfolder"
+	if [[ -n "$val" ]]; then
+		echo "$val" > "$configfolder/$name"
+	else
+		rm -f "$configfolder/$name"
 	fi
 }
 

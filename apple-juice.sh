@@ -1712,6 +1712,15 @@ if [[ "$action" == "maintain_synchronous" ]]; then
 	change_magsafe_led_color "auto"
 
 	consecutive_failures=0
+
+	# Cleanup handler for unexpected termination - re-enable charging before exit
+	function maintain_cleanup() {
+		log "Maintain daemon terminated, re-enabling charging"
+		enable_charging
+		rm -f "$pidfile"
+		exit 1
+	}
+	trap maintain_cleanup SIGINT SIGTERM
 	trap ack_SIG SIGUSR1
 	while true; do
 		if [ "$maintain_status" != "$pre_maintain_status" ]; then # update state to state_file

@@ -1258,6 +1258,16 @@ if ! valid_action "$action"; then
     exit 1
 fi
 
+# Startup recovery check - re-enable charging if left disabled by crashed daemon
+# Skip this check for maintain_synchronous (which intentionally disables charging)
+# and for internal daemon actions that shouldn't trigger recovery
+if [[ "$action" != "maintain_synchronous" ]] && [[ "$action" != "create_daemon" ]] && [[ "$action" != "status_csv" ]]; then
+    if [[ "$(get_smc_charging_status)" == "disabled" ]] && [[ "$(maintain_is_running)" == "0" ]]; then
+        log "Warning: Charging was left disabled by a previous crash, re-enabling"
+        enable_charging
+    fi
+fi
+
 # Visudo message
 if [[ "$action" == "visudo" ]]; then
 

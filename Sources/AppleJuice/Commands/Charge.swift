@@ -41,6 +41,18 @@ struct Charge: ParsableCommand {
         controller.enableCharging()
         controller.changeMagSafeLED(.orange)
 
+        signal(SIGTERM, SIG_IGN)
+        let sigSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global())
+        sigSource.setEventHandler {
+            controller.enableCharging()
+            controller.changeMagSafeLED(.auto)
+            if originalMaintainStatus == "active" && !ProcessHelper.calibrateIsRunning() {
+                ProcessRunner.run(binaryPath, arguments: ["maintain", "recover"])
+            }
+            Darwin.exit(1)
+        }
+        sigSource.resume()
+
         // Charge loop
         var prevPct = batteryPct
         var errorCount = 0
@@ -87,7 +99,7 @@ struct Charge: ParsableCommand {
         let finalPct = getBatteryPercentage(using: smcClient)
         if !chargeError {
             log("Charging completed at \(finalPct)%")
-            if finalPct >= getMaintainUpperLimit() && !isCalibrating && originalMaintainStatus == "active" {
+            if !isCalibrating && originalMaintainStatus == "active" {
                 ProcessRunner.run(binaryPath, arguments: ["maintain", "recover"])
             }
         } else {
@@ -118,7 +130,7 @@ struct Discharge: ParsableCommand {
         }
 
         guard let targetPct = Int(target), targetPct >= 1, targetPct <= 100 else {
-            log("Error: \(target) is not a valid setting for discharge. Please use a number between 0 and 100")
+            log("Error: \(target) is not a valid setting for discharge. Please use a number between 1 and 100")
             throw ExitCode.failure
         }
 
@@ -145,6 +157,18 @@ struct Discharge: ParsableCommand {
         log("Discharging to \(targetPct)% from \(batteryPct)%")
         controller.enableDischarging()
         controller.changeMagSafeLED(.none)
+
+        signal(SIGTERM, SIG_IGN)
+        let sigSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global())
+        sigSource.setEventHandler {
+            controller.disableDischarging()
+            controller.changeMagSafeLED(.auto)
+            if originalMaintainStatus == "active" && !ProcessHelper.calibrateIsRunning() {
+                ProcessRunner.run(binaryPath, arguments: ["maintain", "recover"])
+            }
+            Darwin.exit(1)
+        }
+        sigSource.resume()
 
         // Discharge loop
         var prevPct = batteryPct
@@ -185,7 +209,7 @@ struct Discharge: ParsableCommand {
         let finalPct = getBatteryPercentage(using: smcClient)
         if !dischargeError {
             log("Discharging completed at \(finalPct)%")
-            if finalPct >= getMaintainUpperLimit() && !ProcessHelper.calibrateIsRunning() && originalMaintainStatus == "active" {
+            if !ProcessHelper.calibrateIsRunning() && originalMaintainStatus == "active" {
                 ProcessRunner.run(binaryPath, arguments: ["maintain", "recover"])
             }
         } else {

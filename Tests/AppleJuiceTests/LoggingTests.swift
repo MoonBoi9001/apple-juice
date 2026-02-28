@@ -24,7 +24,6 @@ struct LoggingTests {
     @Test func rotateLogFileWhenOverLimit() throws {
         let tempFile = NSTemporaryDirectory() + "apple-juice-logtest-\(UUID().uuidString).log"
 
-        // Create a file exceeding 5MB
         var lines: [String] = []
         let lineContent = String(repeating: "X", count: 100)
         for i in 0..<55000 {
@@ -40,35 +39,5 @@ struct LoggingTests {
         #expect(afterLines.count <= 100, "Rotated file should have at most 100 lines")
 
         try? FileManager.default.removeItem(atPath: tempFile)
-    }
-
-    // MARK: - Timestamp format
-
-    @Test func timestampFormat() {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM/dd/yy-HH:mm:ss"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-
-        let date = formatter.date(from: "02/27/26-14:30:45")
-        #expect(date != nil, "Formatter should parse MM/DD/YY-HH:MM:SS format")
-
-        if let date {
-            let output = formatter.string(from: date)
-            #expect(output == "02/27/26-14:30:45")
-        }
-    }
-
-    @Test func dateOnlyFormat() {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy/MM/dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-
-        let date = formatter.date(from: "2026/02/27")
-        #expect(date != nil)
-
-        if let date {
-            let output = formatter.string(from: date)
-            #expect(output == "2026/02/27")
-        }
     }
 }

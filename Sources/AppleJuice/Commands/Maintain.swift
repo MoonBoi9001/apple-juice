@@ -53,6 +53,8 @@ struct Maintain: ParsableCommand {
                 } else {
                     log("Battery maintain is already running")
                 }
+            } else {
+                log("Battery maintain is not running")
             }
             return
         }
@@ -145,8 +147,8 @@ struct Maintain: ParsableCommand {
         }
 
         // Validate percentage
-        guard let pct = Int(setting), pct >= 0, pct <= 100 else {
-            log("Error: \(setting) is not a valid setting for maintain. Please use a number between 0 and 100, 'longevity' for optimal lifespan, or 'stop'/'recover'.")
+        guard let pct = Int(setting), pct >= 10, pct <= 100 else {
+            log("Error: \(setting) is not a valid setting for maintain. Please use a number between 10 and 100, 'longevity' for optimal lifespan, or 'stop'/'recover'.")
             throw ExitCode.failure
         }
 
@@ -173,7 +175,7 @@ struct Maintain: ParsableCommand {
                 message: "Do you want to discharge battery to \(pct)% now?",
                 buttons: ["Yes", "No"],
                 timeout: 10)
-            if answer == "Yes" || answer == nil {
+            if answer == "Yes" {
                 log("Start discharging to \(pct)%")
                 ProcessRunner.run(binaryPath, arguments: ["discharge", setting])
                 ProcessRunner.run(binaryPath, arguments: ["maintain", "recover"])

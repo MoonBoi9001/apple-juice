@@ -92,7 +92,7 @@ final class IOKitSMCClient: SMCClientProtocol {
 
         // Try to open IOKit connection to AppleSMC
         let service = IOServiceGetMatchingService(
-            kIOMainPortCompat,
+            kIOMainPortDefault,
             IOServiceMatching("AppleSMC"))
 
         if service != 0 {
@@ -226,11 +226,3 @@ private struct SMCPLimitData {
     var memPLimit: UInt32 = 0
 }
 
-/// Compatibility shim for kIOMainPortCompat across macOS versions.
-private let kIOMainPortCompat: mach_port_t = {
-    if #available(macOS 12.0, *) {
-        return kIOMainPortDefault
-    } else {
-        return 0 // kIOMasterPortDefault
-    }
-}()

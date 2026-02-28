@@ -1,5 +1,18 @@
 import Foundation
 
+enum ChargingAction: Equatable {
+    case disableCharging, enableCharging, noAction
+}
+
+struct ChargingDecision {
+    static func evaluate(percentage: Int, chargingEnabled: Bool,
+                         upperLimit: Int, lowerLimit: Int) -> ChargingAction {
+        if percentage >= upperLimit && chargingEnabled { return .disableCharging }
+        if percentage < lowerLimit && !chargingEnabled { return .enableCharging }
+        return .noAction
+    }
+}
+
 /// Internal subcommand for the maintain daemon loop (invoked by LaunchAgent).
 /// This is the port of `maintain_synchronous` from the bash script.
 final class MaintainDaemon {
@@ -74,6 +87,7 @@ final class MaintainDaemon {
         // Setup sleep/wake listener for charging control during sleep
         sleepWakeListener = SleepWakeListener { [weak self] event in
             guard let self = self else { return }
+            let acPower = BatteryInfo.isACPower
             self.smcQueue.sync {
                 switch event {
                 case .willSleep:
@@ -83,7 +97,7 @@ final class MaintainDaemon {
                         // At or above target: disable charging during sleep
                         self.smcClient.write(.CH0C, value: SMCWriteValue.CH0C_disable)
                         log("Sleep: at \(pct)% (>= \(self.upperLimit)%), charging disabled")
-                    } else if self.status == .active && BatteryInfo.isACPower {
+                    } else if self.status == .active && acPower {
                         // Below target with AC: leave charging enabled, schedule wake to cut off at target
                         self.smcClient.write(.CH0C, value: SMCWriteValue.CH0C_enable)
                         if let seconds = WakeScheduler.estimateTimeToTarget(
@@ -142,10 +156,14 @@ final class MaintainDaemon {
                     let pct = getBatteryPercentage(using: smcClient)
                     let chargingEnabled = getSMCChargingStatus(using: smcClient, caps: caps) == "enabled"
 
-                    if pct >= upperLimit && chargingEnabled {
+                    let action = ChargingDecision.evaluate(
+                        percentage: pct, chargingEnabled: chargingEnabled,
+                        upperLimit: upperLimit, lowerLimit: lowerLimit)
+
+                    switch action {
+                    case .disableCharging:
                         log("Stop charge above \(upperLimit)")
                         controller.disableCharging()
-                        // Verify the write took effect
                         let stillEnabled = getSMCChargingStatus(using: smcClient, caps: caps) == "enabled"
                         if stillEnabled {
                             consecutiveControlFailures += 1
@@ -154,7 +172,7 @@ final class MaintainDaemon {
                             consecutiveControlFailures = 0
                         }
                         sleepDuration = 60
-                    } else if pct < lowerLimit && !chargingEnabled {
+                    case .enableCharging:
                         log("Charge below \(lowerLimit)")
                         controller.enableCharging()
                         let stillDisabled = getSMCChargingStatus(using: smcClient, caps: caps) == "disabled"
@@ -165,6 +183,8 @@ final class MaintainDaemon {
                             consecutiveControlFailures = 0
                         }
                         sleepDuration = 5
+                    case .noAction:
+                        break
                     }
 
                     if consecutiveControlFailures >= 5 {
@@ -180,8 +200,8 @@ final class MaintainDaemon {
                 Thread.sleep(forTimeInterval: 60)
 
                 // Check for AC reconnection to auto-recover (under queue)
+                let acConnected = BatteryInfo.isACPower
                 smcQueue.sync {
-                    let acConnected = BatteryInfo.isACPower
                     if !ProcessHelper.calibrateIsRunning() {
                         if acConnected && !preACConnection {
                             status = .active
@@ -383,7 +403,12 @@ final class MaintainDaemon {
             let voltages = battery.cellVoltages?.map(String.init).joined(separator: ", ") ?? "?"
             log("Cell imbalance detected: \(imbalance)mV (cells: \(voltages)mV). Triggering balance for BMS cell balancing.")
             let binaryPath = CommandLine.arguments[0]
-            ProcessRunner.shell("nohup '\(binaryPath)' balance &")
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: binaryPath)
+            process.arguments = ["balance"]
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            try? process.run()
         }
     }
 

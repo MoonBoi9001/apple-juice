@@ -29,8 +29,9 @@ struct DailyLog: ParsableCommand {
         if FileManager.default.fileExists(atPath: path) {
             let contents = try String(contentsOfFile: path, encoding: .utf8)
             print(contents, terminator: "")
+        } else {
+            print("No daily log found at \(path)")
         }
-        print("Daily log stored at: \(path)")
     }
 }
 

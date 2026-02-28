@@ -20,6 +20,7 @@ enum Migration {
         guard let contents = try? String(contentsOfFile: oldConfig, encoding: .utf8) else { return }
 
         let store = ConfigStore()
+        var migrated = false
 
         for line in contents.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -30,20 +31,22 @@ enum Migration {
             if parts.count == 2 {
                 let key = parts[0].trimmingCharacters(in: .whitespaces)
                 let val = parts[1].trimmingCharacters(in: .whitespaces)
-                try? store.write(key, value: val)
+                if (try? store.write(key, value: val)) != nil { migrated = true }
             } else {
                 // Try "key value" format (space-separated as in bash IFS)
                 let spaceParts = trimmed.split(separator: " ", maxSplits: 1)
                 if spaceParts.count == 2 {
                     let key = String(spaceParts[0])
                     let val = String(spaceParts[1])
-                    try? store.write(key, value: val)
+                    if (try? store.write(key, value: val)) != nil { migrated = true }
                 }
             }
         }
 
-        // Rename old config
-        try? FileManager.default.moveItem(atPath: oldConfig, toPath: oldConfig + ".migrated")
+        // Only rename old config if at least one write succeeded
+        if migrated {
+            try? FileManager.default.moveItem(atPath: oldConfig, toPath: oldConfig + ".migrated")
+        }
     }
 
     /// Migrate old config key names to new format.

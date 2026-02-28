@@ -2,6 +2,8 @@ import Foundation
 
 /// Manages LaunchAgent plists for the maintain daemon and schedule.
 enum DaemonManager {
+    private static let uid = String(getuid())
+
     // MARK: - Maintain daemon
 
     /// Generate and install the maintain LaunchAgent plist.
@@ -57,13 +59,11 @@ enum DaemonManager {
         try? plist.write(toFile: path, atomically: true, encoding: .utf8)
 
         // Enable daemon
-        let uid = ProcessRunner.shell("id -u").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         ProcessRunner.shell("launchctl enable gui/\(uid)/com.apple-juice.app")
     }
 
     /// Start the maintain daemon via launchctl bootstrap.
     static func startDaemon() {
-        let uid = ProcessRunner.shell("id -u").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         // Bootout any existing instance first (ignore errors if not loaded)
         ProcessRunner.shell("launchctl bootout gui/\(uid)/com.apple-juice.app 2>/dev/null")
         // Bootstrap the plist so launchd manages the process from the start
@@ -74,13 +74,11 @@ enum DaemonManager {
 
     /// Stop and unload the maintain daemon.
     static func stopDaemon() {
-        let uid = ProcessRunner.shell("id -u").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         ProcessRunner.shell("launchctl bootout gui/\(uid)/com.apple-juice.app 2>/dev/null")
     }
 
     /// Disable the maintain daemon (prevent future loads).
     static func disableDaemon() {
-        let uid = ProcessRunner.shell("id -u").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         ProcessRunner.shell("launchctl disable gui/\(uid)/com.apple-juice.app")
     }
 
@@ -138,7 +136,6 @@ enum DaemonManager {
 
     /// Enable the schedule daemon.
     static func enableScheduleDaemon() {
-        let uid = ProcessRunner.shell("id -u").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         ProcessRunner.shell("launchctl enable gui/\(uid)/com.apple-juice_schedule.app")
         // Bootstrap if not loaded
         if FileManager.default.fileExists(atPath: Paths.schedulePath) {
@@ -148,7 +145,6 @@ enum DaemonManager {
 
     /// Disable the schedule daemon.
     static func disableScheduleDaemon() {
-        let uid = ProcessRunner.shell("id -u").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
         ProcessRunner.shell("launchctl disable gui/\(uid)/com.apple-juice_schedule.app")
         ProcessRunner.shell("launchctl bootout gui/\(uid)/com.apple-juice_schedule.app 2>/dev/null")
     }

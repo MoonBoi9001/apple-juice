@@ -140,7 +140,8 @@ struct Schedule: ParsableCommand {
                     f.locale = Locale(identifier: "en_US_POSIX")
                     return f.string(from: Date())
                 }()
-                scheduleText = "Schedule calibration on day \(days[0]) every \(monthPeriod) month at \(hour):\(minuteStr) starting from Month \(monthStr) of Year \(yearStr)"
+                let dayList = days.map(String.init).joined(separator: " ")
+                scheduleText = "Schedule calibration on day \(dayList) every \(monthPeriod) month at \(hour):\(minuteStr) starting from Month \(monthStr) of Year \(yearStr)"
             }
         }
 
@@ -185,15 +186,21 @@ struct Schedule: ParsableCommand {
                 nextDate = calendar.date(byAdding: .weekOfYear, value: weekPeriod - 1, to: next)
             }
         } else {
-            // Monthly: find next occurrence of this day, then add (monthPeriod - 1) months
-            let day = days.first ?? 1
-            var components = DateComponents()
-            components.day = day
-            components.hour = hour
-            components.minute = minute
-            if let next = calendar.nextDate(after: Date(), matching: components, matchingPolicy: .nextTime) {
-                nextDate = calendar.date(byAdding: .month, value: monthPeriod - 1, to: next)
+            // Monthly: find earliest next occurrence across all days, then add (monthPeriod - 1) months
+            var earliest: Date?
+            for day in days {
+                var components = DateComponents()
+                components.day = day
+                components.hour = hour
+                components.minute = minute
+                if let next = calendar.nextDate(after: Date(), matching: components, matchingPolicy: .nextTime) {
+                    let adjusted = calendar.date(byAdding: .month, value: monthPeriod - 1, to: next) ?? next
+                    if earliest == nil || adjusted < earliest! {
+                        earliest = adjusted
+                    }
+                }
             }
+            nextDate = earliest
         }
 
         if let next = nextDate {

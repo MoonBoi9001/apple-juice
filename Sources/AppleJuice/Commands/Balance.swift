@@ -9,6 +9,8 @@ struct Balance: ParsableCommand {
 
     func run() throws {
         let binaryPath = CommandLine.arguments[0]
+        try "\(getpid())".write(toFile: Paths.calibratePidFile, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(atPath: Paths.calibratePidFile) }
 
         guard ProcessHelper.maintainIsRunning() else {
             log("Error: Battery maintain must be running before balance")

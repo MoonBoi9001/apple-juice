@@ -16,10 +16,10 @@ struct SSD: ParsableCommand {
         }
 
         // Enable SMART
-        ProcessRunner.shell("smartctl -s on disk0")
+        ProcessRunner.shell("sudo smartctl -s on disk0")
 
         // Get extended info
-        let result = ProcessRunner.shell("smartctl -x disk0")
+        let result = ProcessRunner.shell("sudo smartctl -x disk0")
         let info = result.stdout
 
         // Detect firmware format

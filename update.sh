@@ -83,9 +83,9 @@ sudo chmod 755 "$binfolder/apple-juice"
 # Install smc binary (included in the tarball)
 if [[ -f "$tempfolder/extract/smc" ]]; then
 	sudo cp "$tempfolder/extract/smc" "$binfolder/smc"
+	sudo chown root:wheel "$binfolder/smc"
+	sudo chmod 755 "$binfolder/smc"
 fi
-sudo chown root:wheel "$binfolder/smc"
-sudo chmod 755 "$binfolder/smc"
 
 # Create/update symlinks in /usr/local/bin for PATH accessibility
 sudo mkdir -p /usr/local/bin
@@ -95,7 +95,7 @@ sudo ln -sf "$binfolder/smc" /usr/local/bin/smc
 sudo chown -h root:wheel /usr/local/bin/smc
 
 echo "[ 4 ] Setting up visudo"
-sudo "$binfolder/apple-juice" visudo "$USER"
+sudo "$binfolder/apple-juice" visudo
 
 echo "[ 5 ] Running migration"
 mkdir -p "$configfolder"

@@ -4,12 +4,15 @@ import IOKit.pwr_mgt
 
 /// Manages power assertions and sleep/wake notifications.
 enum PowerManager {
+    private static let lock = NSLock()
     nonisolated(unsafe) private static var assertionID: IOPMAssertionID = 0
 
     /// Create a power assertion to prevent system sleep.
     /// Returns true if successful.
     @discardableResult
     static func preventSleep(reason: String = "apple-juice battery operation") -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
         let result = IOPMAssertionCreateWithName(
             kIOPMAssertionTypePreventUserIdleSystemSleep as CFString,
             IOPMAssertionLevel(kIOPMAssertionLevelOn),
@@ -20,6 +23,8 @@ enum PowerManager {
 
     /// Release the sleep prevention assertion.
     static func allowSleep() {
+        lock.lock()
+        defer { lock.unlock() }
         if assertionID != 0 {
             IOPMAssertionRelease(assertionID)
             assertionID = 0
@@ -53,6 +58,8 @@ final class SleepWakeListener {
     fileprivate var powerConnection: io_connect_t = 0
     private let handler: EventHandler
     private var runLoopThread: Thread?
+    /// The CFRunLoop of the background thread, used to unblock it during stop().
+    private var threadRunLoop: CFRunLoop?
     /// Synchronizes stop() with the IOKit callback to prevent use-after-free.
     fileprivate let lock = NSLock()
     /// Whether stop() has been called. Checked under lock by the callback.
@@ -81,8 +88,17 @@ final class SleepWakeListener {
         stopped = true
         lock.unlock()
 
+        // Unblock the CFRunLoop so the thread exits promptly.
+        if let rl = threadRunLoop {
+            CFRunLoopStop(rl)
+        }
+
         if let thread = runLoopThread {
             thread.cancel()
+            // Wait for the run loop thread to finish before tearing down IOKit.
+            for _ in 0..<100 where thread.isExecuting {
+                Thread.sleep(forTimeInterval: 0.01)
+            }
             runLoopThread = nil
         }
         if notifierObject != 0 {
@@ -120,6 +136,8 @@ final class SleepWakeListener {
 
         let runLoopSource = IONotificationPortGetRunLoopSource(port).takeUnretainedValue()
         CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .defaultMode)
+
+        self.threadRunLoop = CFRunLoopGetCurrent()
 
         while !Thread.current.isCancelled {
             CFRunLoopRunInMode(.defaultMode, 1.0, true)

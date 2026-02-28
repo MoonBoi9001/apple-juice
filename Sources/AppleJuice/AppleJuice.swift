@@ -50,6 +50,7 @@ private let _startup: Void = {
 /// Wraps any ParsableCommand to inject the startup hook before run().
 protocol StartupAware: ParsableCommand {}
 extension Status: StartupAware {}
+extension Maintain: StartupAware {}
 extension Charge: StartupAware {}
 extension Discharge: StartupAware {}
 extension Calibrate: StartupAware {}

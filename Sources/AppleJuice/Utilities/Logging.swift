@@ -27,42 +27,53 @@ private let dateOnlyFormatter: DateFormatter = {
     return f
 }()
 
+/// Serial queue protecting DateFormatter access and log file writes.
+private let logQueue = DispatchQueue(label: "com.apple-juice.logging")
+
 // MARK: - Public logging functions
 
 /// Log with timestamp and newline. Matches bash `log()`.
 /// Output: "MM/DD/YY-HH:MM:SS - message\n"
 func log(_ message: String) {
-    let line = "\(timestampFormatter.string(from: Date())) - \(message)"
-    print(line)
-    osLogger.info("\(message)")
-    appendToLogFile(line + "\n")
+    logQueue.sync {
+        let line = "\(timestampFormatter.string(from: Date())) - \(message)"
+        print(line)
+        osLogger.info("\(message)")
+        appendToLogFile(line + "\n")
+    }
 }
 
 /// Log with leading newline + timestamp. Matches bash `logLF()`.
 /// Output: "\nMM/DD/YY-HH:MM:SS - message\n"
 func logLF(_ message: String) {
-    let line = "\(timestampFormatter.string(from: Date())) - \(message)"
-    print("\n\(line)")
-    osLogger.info("\(message)")
-    appendToLogFile("\n" + line + "\n")
+    logQueue.sync {
+        let line = "\(timestampFormatter.string(from: Date())) - \(message)"
+        print("\n\(line)")
+        osLogger.info("\(message)")
+        appendToLogFile("\n" + line + "\n")
+    }
 }
 
 /// Log with timestamp, no trailing newline. Matches bash `logn()`.
 /// Output: "MM/DD/YY-HH:MM:SS - message" (no newline)
 func logn(_ message: String) {
-    let line = "\(timestampFormatter.string(from: Date())) - \(message)"
-    print(line, terminator: "")
-    osLogger.info("\(message)")
-    appendToLogFile(line)
+    logQueue.sync {
+        let line = "\(timestampFormatter.string(from: Date())) - \(message)"
+        print(line, terminator: "")
+        osLogger.info("\(message)")
+        appendToLogFile(line)
+    }
 }
 
 /// Log with date only. Matches bash `logd()`.
 /// Output: "YYYY/MM/DD message\n"
 func logd(_ message: String) {
-    let line = "\(dateOnlyFormatter.string(from: Date())) \(message)"
-    print(line)
-    osLogger.info("\(message)")
-    appendToLogFile(line + "\n")
+    logQueue.sync {
+        let line = "\(dateOnlyFormatter.string(from: Date())) \(message)"
+        print(line)
+        osLogger.info("\(message)")
+        appendToLogFile(line + "\n")
+    }
 }
 
 // MARK: - File logging

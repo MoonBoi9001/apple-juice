@@ -29,7 +29,11 @@ enum Webhook {
         request.timeoutInterval = 10
 
         let semaphore = DispatchSemaphore(value: 0)
-        URLSession.shared.dataTask(with: request) { _, _, _ in
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            if let error { log("Webhook error: \(error.localizedDescription)") }
+            else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                log("Webhook HTTP \(http.statusCode)")
+            }
             semaphore.signal()
         }.resume()
         _ = semaphore.wait(timeout: .now() + 15)

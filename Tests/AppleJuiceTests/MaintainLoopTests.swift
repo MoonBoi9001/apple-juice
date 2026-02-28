@@ -5,97 +5,59 @@ import Foundation
 @Suite("MaintainLoop Tests")
 struct MaintainLoopTests {
 
-    // MARK: - Charging control decisions with side-effect verification
+    // MARK: - ChargingDecision tests
 
     @Test func disableChargingWhenAboveUpperLimit() {
-        let mock = MockSMCClient()
-        mock.keys[.CH0C] = "00"  // charging enabled
-        mock.keys[.CH0B] = "00"
-        mock.keys[.BRSC] = "55"  // 85%
-
-        let caps = SMCCapabilities(
-            hasCH0B: true, hasCH0C: true, hasCH0I: true,
-            hasCH0J: false, hasCH0K: false, hasACLC: false,
-            hasCHWA: false, hasACFP: false, hasCHTE: false, hasCHIE: false)
-
-        let pct = getBatteryPercentage(using: mock)
-        let chargingEnabled = getSMCChargingStatus(using: mock, caps: caps) == "enabled"
-
-        // Condition met: above 80% with charging enabled
-        #expect(pct >= 80 && chargingEnabled)
-
-        // Verify disableCharging writes the expected SMC values
-        let controller = ChargingController(client: mock, caps: caps)
-        controller.disableCharging()
-
-        let ch0bWrite = mock.writeLog.first { $0.0 == .CH0B }
-        let ch0cWrite = mock.writeLog.first { $0.0 == .CH0C }
-        #expect(ch0bWrite?.1 == "02")
-        #expect(ch0cWrite?.1 == "02")
+        let action = ChargingDecision.evaluate(
+            percentage: 85, chargingEnabled: true,
+            upperLimit: 80, lowerLimit: 50)
+        #expect(action == .disableCharging)
     }
 
     @Test func enableChargingWhenBelowLowerLimit() {
-        let mock = MockSMCClient()
-        mock.keys[.CH0C] = "02"  // charging disabled
-        mock.keys[.CH0B] = "02"
-        mock.keys[.BRSC] = "30"  // 48%
-
-        let caps = SMCCapabilities(
-            hasCH0B: true, hasCH0C: true, hasCH0I: true,
-            hasCH0J: false, hasCH0K: false, hasACLC: false,
-            hasCHWA: false, hasACFP: false, hasCHTE: false, hasCHIE: false)
-
-        let pct = getBatteryPercentage(using: mock)
-        let chargingEnabled = getSMCChargingStatus(using: mock, caps: caps) == "enabled"
-
-        // Condition met: below 50% with charging disabled
-        #expect(pct < 50 && !chargingEnabled)
-
-        // Verify enableCharging writes the expected SMC values
-        let controller = ChargingController(client: mock, caps: caps)
-        controller.enableCharging()
-
-        let ch0bWrite = mock.writeLog.first { $0.0 == .CH0B }
-        let ch0cWrite = mock.writeLog.first { $0.0 == .CH0C }
-        #expect(ch0bWrite?.1 == "00")
-        #expect(ch0cWrite?.1 == "00")
+        let action = ChargingDecision.evaluate(
+            percentage: 48, chargingEnabled: false,
+            upperLimit: 80, lowerLimit: 50)
+        #expect(action == .enableCharging)
     }
 
     @Test func noActionBetweenLimits() {
-        // Verifies that when battery is between lower and upper limits,
-        // evaluating the same conditions as the maintain loop produces no SMC writes.
-        // The maintain loop only acts when (pct >= upper && charging enabled) or
-        // (pct < lower && charging disabled). This test confirms the "no-op" zone.
-        let mock = MockSMCClient()
-        mock.keys[.CH0C] = "02"  // charging disabled (correct for between limits)
-        mock.keys[.BRSC] = "46"  // 70%
+        let action = ChargingDecision.evaluate(
+            percentage: 70, chargingEnabled: false,
+            upperLimit: 80, lowerLimit: 50)
+        #expect(action == .noAction)
+    }
 
-        let caps = SMCCapabilities(
-            hasCH0B: true, hasCH0C: true, hasCH0I: false,
-            hasCH0J: false, hasCH0K: false, hasACLC: false,
-            hasCHWA: false, hasACFP: false, hasCHTE: false, hasCHIE: false)
+    @Test func disableChargingExactlyAtUpperLimit() {
+        let action = ChargingDecision.evaluate(
+            percentage: 80, chargingEnabled: true,
+            upperLimit: 80, lowerLimit: 50)
+        #expect(action == .disableCharging)
+    }
 
-        let upperLimit = 80
-        let lowerLimit = 50
-        let pct = getBatteryPercentage(using: mock)
-        let chargingEnabled = getSMCChargingStatus(using: mock, caps: caps) == "enabled"
+    @Test func noActionExactlyAtLowerLimitWithChargingDisabled() {
+        let action = ChargingDecision.evaluate(
+            percentage: 50, chargingEnabled: false,
+            upperLimit: 80, lowerLimit: 50)
+        #expect(action == .noAction)
+    }
 
-        // Replicate the maintain loop decision logic: only call controller
-        // methods when the threshold conditions are met.
-        let controller = ChargingController(client: mock, caps: caps)
-        if pct >= upperLimit && chargingEnabled {
-            controller.disableCharging()
-        } else if pct < lowerLimit && !chargingEnabled {
-            controller.enableCharging()
-        }
+    @Test func noActionAboveUpperWithChargingAlreadyDisabled() {
+        let action = ChargingDecision.evaluate(
+            percentage: 85, chargingEnabled: false,
+            upperLimit: 80, lowerLimit: 50)
+        #expect(action == .noAction)
+    }
 
-        // Neither branch was taken, so no SMC writes occurred
-        #expect(mock.writeLog.isEmpty)
+    @Test func noActionBelowLowerWithChargingAlreadyEnabled() {
+        let action = ChargingDecision.evaluate(
+            percentage: 48, chargingEnabled: true,
+            upperLimit: 80, lowerLimit: 50)
+        #expect(action == .noAction)
     }
 
     @Test func consecutiveFailureDetection() {
         let mock = MockSMCClient()
-        // No BRSC key = read failure
         #expect(mock.readDecimal(.BRSC) == nil)
         #expect(getBatteryPercentage(using: mock) == 0)
     }
@@ -104,8 +66,6 @@ struct MaintainLoopTests {
 
     @Test func controlFailureWhenWriteDoesNotTakeEffect() {
         let mock = MockSMCClient()
-        // CH0C stays "00" (enabled) even after disableCharging writes "02"
-        // because MockSMCClient doesn't update keys on write
         mock.keys[.CH0C] = "00"
         mock.keys[.CH0B] = "00"
 
@@ -117,8 +77,6 @@ struct MaintainLoopTests {
         let controller = ChargingController(client: mock, caps: caps)
         controller.disableCharging()
 
-        // After disableCharging, re-reading CH0C still shows "00" (enabled)
-        // because mock doesn't update internal state on write -- simulating SMC failure
         let stillEnabled = getSMCChargingStatus(using: mock, caps: caps) == "enabled"
         #expect(stillEnabled)
     }

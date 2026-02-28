@@ -6,6 +6,7 @@ import Foundation
 /// it estimates when charging will reach the target and schedules a brief wake. On wake, the
 /// daemon disables charging and the Mac returns to idle sleep.
 enum WakeScheduler {
+    private static let lock = NSLock()
     /// The date string of the currently scheduled wake (pmset format), if any.
     nonisolated(unsafe) private(set) static var scheduledWakeDate: String?
 
@@ -19,7 +20,10 @@ enum WakeScheduler {
     /// Schedule the Mac to wake at a specific date.
     /// Cancels any existing scheduled wake first.
     static func scheduleWake(at date: Date) {
-        cancelWake()
+        lock.lock()
+        defer { lock.unlock() }
+
+        cancelWakeUnlocked()
 
         let dateString = dateFormatter.string(from: date)
         let result = ProcessRunner.run(
@@ -37,6 +41,12 @@ enum WakeScheduler {
 
     /// Cancel any previously scheduled wake.
     static func cancelWake() {
+        lock.lock()
+        defer { lock.unlock() }
+        cancelWakeUnlocked()
+    }
+
+    private static func cancelWakeUnlocked() {
         guard let dateString = scheduledWakeDate else { return }
 
         ProcessRunner.run(
@@ -45,6 +55,42 @@ enum WakeScheduler {
             timeout: 10)
 
         scheduledWakeDate = nil
+    }
+
+    /// Pure calculation for time-to-target estimation. Extracted for testability.
+    static func calculateTimeToTarget(
+        currentPercent: Int,
+        targetPercent: Int,
+        avgTimeToFullMinutes: Int?,
+        instantAmperage: Int?,
+        rawMaxCapacity: Int?,
+        rawCurrentCapacity: Int?
+    ) -> TimeInterval? {
+        guard currentPercent < targetPercent else { return nil }
+
+        let gap = targetPercent - currentPercent
+        let fullGap = 100 - currentPercent
+
+        // Primary: scale AvgTimeToFull proportionally
+        if let avgMinutes = avgTimeToFullMinutes, avgMinutes > 0, fullGap > 0 {
+            let scaledMinutes = Double(avgMinutes) * Double(gap) / Double(fullGap)
+            let seconds = max((scaledMinutes - 5) * 60, 600)
+            return seconds
+        }
+
+        // Fallback: InstantAmperage + raw capacity
+        if let amperage = instantAmperage, amperage > 0,
+           let maxCap = rawMaxCapacity, maxCap > 0,
+           let currentCap = rawCurrentCapacity {
+            let targetCap = Double(targetPercent) * Double(maxCap) / 100.0
+            let remaining = targetCap - Double(currentCap)
+            guard remaining > 0 else { return nil }
+            let hours = remaining / Double(amperage)
+            let seconds = max((hours * 3600) - 300, 600)
+            return seconds
+        }
+
+        return nil
     }
 
     /// Estimate seconds until the battery reaches `targetPercent` from `currentPercent`.
@@ -59,28 +105,12 @@ enum WakeScheduler {
         guard currentPercent < targetPercent else { return nil }
 
         let battery = BatteryInfo()
-        let gap = targetPercent - currentPercent
-        let fullGap = 100 - currentPercent
-
-        // Primary: scale AvgTimeToFull proportionally
-        if let avgMinutes = battery.avgTimeToFull, avgMinutes > 0, fullGap > 0 {
-            let scaledMinutes = Double(avgMinutes) * Double(gap) / Double(fullGap)
-            let seconds = max((scaledMinutes - 5) * 60, 600)
-            return seconds
-        }
-
-        // Fallback: InstantAmperage + raw capacity
-        if let amperage = battery.instantAmperage, amperage > 0,
-           let maxCap = battery.rawMaxCapacity, maxCap > 0,
-           let currentCap = battery.rawCurrentCapacity {
-            let targetCap = Double(targetPercent) * Double(maxCap) / 100.0
-            let remaining = targetCap - Double(currentCap)
-            guard remaining > 0 else { return nil }
-            let hours = remaining / Double(amperage)
-            let seconds = max((hours * 3600) - 300, 600)
-            return seconds
-        }
-
-        return nil
+        return calculateTimeToTarget(
+            currentPercent: currentPercent,
+            targetPercent: targetPercent,
+            avgTimeToFullMinutes: battery.avgTimeToFull,
+            instantAmperage: battery.instantAmperage,
+            rawMaxCapacity: battery.rawMaxCapacity,
+            rawCurrentCapacity: battery.rawCurrentCapacity)
     }
 }

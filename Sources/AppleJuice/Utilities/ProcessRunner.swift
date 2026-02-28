@@ -40,16 +40,37 @@ enum ProcessRunner {
         // Handle timeout
         if let timeout {
             let deadline = DispatchTime.now() + timeout
-            let group = DispatchGroup()
-            group.enter()
+            let processGroup = DispatchGroup()
+            let pipeGroup = DispatchGroup()
+            nonisolated(unsafe) var stdoutData = Data()
+            nonisolated(unsafe) var stderrData = Data()
+
+            pipeGroup.enter()
+            DispatchQueue.global().async {
+                stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+                pipeGroup.leave()
+            }
+            pipeGroup.enter()
+            DispatchQueue.global().async {
+                stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                pipeGroup.leave()
+            }
+            processGroup.enter()
             DispatchQueue.global().async {
                 process.waitUntilExit()
-                group.leave()
+                processGroup.leave()
             }
-            if group.wait(timeout: deadline) == .timedOut {
+
+            if processGroup.wait(timeout: deadline) == .timedOut {
                 process.terminate()
+                pipeGroup.wait()
                 return ProcessResult(exitCode: -1, stdout: "", stderr: "Process timed out")
             }
+            pipeGroup.wait()
+            return ProcessResult(
+                exitCode: process.terminationStatus,
+                stdout: String(data: stdoutData, encoding: .utf8) ?? "",
+                stderr: String(data: stderrData, encoding: .utf8) ?? "")
         } else {
             // Read pipes before waiting to prevent deadlock: if the child fills
             // the pipe buffer (64KB), waitUntilExit blocks forever.
@@ -62,16 +83,6 @@ enum ProcessRunner {
                 stderr: String(data: stderrData, encoding: .utf8) ?? ""
             )
         }
-
-        // Timeout path: process already exited after group.wait succeeded
-        let stdoutData = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
-        let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
-
-        return ProcessResult(
-            exitCode: process.terminationStatus,
-            stdout: String(data: stdoutData, encoding: .utf8) ?? "",
-            stderr: String(data: stderrData, encoding: .utf8) ?? ""
-        )
     }
 
     /// Run a command via /bin/bash -c.

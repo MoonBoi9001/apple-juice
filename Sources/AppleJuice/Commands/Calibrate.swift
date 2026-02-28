@@ -33,6 +33,8 @@ struct Calibrate: ParsableCommand {
         }
 
         if action == "stop" {
+            try? FileManager.default.removeItem(atPath: Paths.calibratePidFile)
+            ProcessRunner.run(binaryPath, arguments: ["maintain", "recover"])
             return
         }
 

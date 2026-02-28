@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test
+        run: swift test
+
+      - name: Build arm64 binary
+        run: |
+          swift build -c release --arch arm64
+          # Find the built binary (path varies by Swift version)
+          BINARY=$(find .build -name "apple-juice" -type f -perm +111 ! -path "*.dSYM/*" ! -path "*.build/*" | head -1)
+          if [ -z "$BINARY" ]; then
+            echo "Error: could not find built binary"
+            exit 1
+          fi
+          echo "Found binary at: $BINARY"
+          cp "$BINARY" apple-juice
+          chmod +x apple-juice
+
+      - name: Verify binary
+        run: |
+          file apple-juice
+          ./apple-juice --version
+
+      - name: Create tarball
+        run: |
+          mkdir -p staging
+          cp apple-juice staging/
+          cp dist/smc staging/
+          chmod +x staging/smc
+          tar czf apple-juice-${{ github.ref_name }}-arm64.tar.gz -C staging .
+          shasum -a 256 apple-juice-${{ github.ref_name }}-arm64.tar.gz > apple-juice-${{ github.ref_name }}-arm64.tar.gz.sha256
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apple-juice-${{ github.ref_name }}-arm64.tar.gz
+            apple-juice-${{ github.ref_name }}-arm64.tar.gz.sha256
+          generate_release_notes: true

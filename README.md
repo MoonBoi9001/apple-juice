@@ -10,16 +10,17 @@
 
 <a href="#-quick-start"><img src="https://img.shields.io/badge/Install-1a1a1a?style=for-the-badge" alt="Install"></a>
 <a href="#-longevity-mode"><img src="https://img.shields.io/badge/Longevity_Mode-22c55e?style=for-the-badge" alt="Longevity Mode"></a>
+<a href="#-how-it-works"><img src="https://img.shields.io/badge/How_It_Works-1a1a1a?style=for-the-badge" alt="How It Works"></a>
 <a href="#-security"><img src="https://img.shields.io/badge/Security-1a1a1a?style=for-the-badge" alt="Security"></a>
 
 <br>
 <br>
 
-*A security-hardened fork of [BatteryOptimizer_for_Mac](https://github.com/js4jiang5/BatteryOptimizer_for_Mac)*
+*A security-hardened fork of [BatteryOptimizer_for_Mac](https://github.com/js4jiang5/BatteryOptimizer_for_Mac), rewritten in Swift.*
 
 <img src="https://img.shields.io/badge/Apple_Silicon-black?style=flat-square&logo=apple&logoColor=white" alt="Apple Silicon">
-<img src="https://img.shields.io/badge/Intel-0071C5?style=flat-square&logo=intel&logoColor=white" alt="Intel">
-<img src="https://img.shields.io/badge/29_Security_Fixes-22c55e?style=flat-square" alt="Security">
+<img src="https://img.shields.io/badge/Swift-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift">
+<img src="https://img.shields.io/badge/macOS_13+-1a1a1a?style=flat-square" alt="macOS 13+">
 
 <br>
 <br>
@@ -42,13 +43,13 @@
 
 ```bash
 brew install MoonBoi9001/tap/apple-juice
-sudo apple-juice visudo $USER
+sudo apple-juice visudo
 apple-juice maintain longevity
 ```
 
 <br>
 
-Three commands. Set it and forget it. Configure [macOS settings](#%EF%B8%8F-setup) for notifications.
+Three commands. Set it and forget it. Configure [macOS settings](#-setup) for notifications.
 
 <br>
 
@@ -65,7 +66,7 @@ Three commands. Set it and forget it. Configure [macOS settings](#%EF%B8%8F-setu
 
 <br>
 
-> **Lithium-ion batteries degrade fastest at high charge levels.** Keeping your battery between 60-65% dramatically extends its lifespan compared to the default 80-100% cycling.
+> Lithium-ion batteries degrade fastest at high charge levels. Keeping your battery between 60-65% dramatically extends its lifespan compared to the default 80-100% cycling.
 
 <br>
 
@@ -75,17 +76,11 @@ Three commands. Set it and forget it. Configure [macOS settings](#%EF%B8%8F-setu
 
 ## ⚡ Quick Start
 
-**Homebrew:**
+**Homebrew (Apple Silicon only):**
 
 ```bash
 brew install MoonBoi9001/tap/apple-juice
-sudo apple-juice visudo $USER
-```
-
-**Or curl:**
-
-```bash
-curl -s https://raw.githubusercontent.com/MoonBoi9001/apple-juice/main/setup.sh | bash
+sudo apple-juice visudo
 ```
 
 **Then run:**
@@ -152,6 +147,7 @@ apple-juice maintain 80 50        # stay at 80%, sail to 50%
 | Command | Description |
 |:---|:---|
 | `apple-juice status` | Health, temp, cycle count |
+| `apple-juice status --csv` | Machine-readable CSV output |
 | `apple-juice dailylog` | View daily battery log |
 | `apple-juice calibratelog` | View calibration history |
 | `apple-juice logs` | View CLI logs |
@@ -172,7 +168,6 @@ apple-juice maintain 80 50        # stay at 80%, sail to 50%
 | `apple-juice changelog` | View latest changelog |
 | `apple-juice reinstall` | Reinstall from scratch |
 | `apple-juice uninstall` | Remove completely |
-| `apple-juice language tw/us` | Change language |
 
 </details>
 
@@ -184,15 +179,55 @@ apple-juice maintain 80 50        # stay at 80%, sail to 50%
 
 ## 🔒 Security
 
-This fork fixes **29 vulnerabilities** found in upstream:
+The v2.0 rewrite eliminates entire classes of vulnerabilities present in the original bash implementation:
 
-- Command injection via sed/osascript
-- Privilege escalation vectors
-- Race conditions in file operations
-- Signal handler reentrancy bugs
-- Missing input validation
+- No shell interpolation — native Swift binary, no bash/sed/awk attack surface
+- Atomic file writes for all config and PID files
+- Signal handler serialization via GCD (no re-entrancy)
+- Input validation on all user-facing commands
+- Process verification on PID files (confirms apple-juice owns the process)
 
-Executables are root-owned in `/usr/local/co.apple-juice`.
+Executables are root-owned in `/usr/local/co.apple-juice`. SMC access is granted through visudo with specific command allowlists.
+
+<br>
+
+---
+
+<br>
+
+## 🔧 How It Works
+
+apple-juice runs as a background daemon managed by macOS `launchd`. It reads battery state through IOKit and controls charging via SMC keys using the bundled `smc` binary.
+
+The daemon is configured as a LaunchAgent with `KeepAlive`, so macOS automatically restarts it if the process dies unexpectedly (SIGKILL, OOM, crash). On clean shutdown (`maintain stop`), it re-enables charging and stays stopped.
+
+A startup recovery check runs before every command: if charging is found disabled but the daemon is not running, charging is re-enabled automatically. This ensures a Mac is never left in a non-charging state.
+
+**Architecture:**
+
+- Native Swift binary (no bash, no Python, no runtime dependencies)
+- IOKit for direct battery reads (no `ioreg` subprocess overhead)
+- IOKit power notifications for sleep/wake handling (no sleepwatcher dependency)
+- `IOPMAssertionCreateWithName` for sleep prevention (no caffeinate)
+- File-per-key config storage with atomic writes
+- Serial dispatch queue for thread-safe SMC access
+
+<br>
+
+---
+
+<br>
+
+## 🗑️ Uninstalling
+
+Always use `apple-juice uninstall` rather than `brew uninstall` directly. The uninstall command re-enables charging, stops the LaunchAgent, and cleans up all configuration files.
+
+```bash
+apple-juice uninstall
+brew uninstall apple-juice    # optional, removes the binary
+```
+
+Running `brew uninstall` alone will remove the binary but leave the LaunchAgent plist and configuration in place.
 
 <br>
 

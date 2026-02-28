@@ -144,6 +144,8 @@ write_config informed_version "$version_new"
 
 # Restart maintain
 echo "[ 6 ] Restarting apple-juice maintain"
+# Safety: ensure charging is enabled before killing old daemon
+"$binfolder/apple-juice" safety-check 2>/dev/null || true
 pkill -f "$binfolder/apple-juice " 2>/dev/null || true
 sleep 1
 pkill -9 -f "$binfolder/apple-juice " 2>/dev/null || true

@@ -103,8 +103,11 @@ enum Migration {
     }
 
     /// Startup recovery: if charging is disabled but maintain is not running, re-enable charging.
-    /// Matches bash lines 1261-1269.
+    /// Also detects orphaned charge/discharge operations.
     static func startupRecoveryCheck() {
+        // Check for orphaned charge/discharge operations
+        recoverOrphanedChargeState()
+
         guard !ProcessHelper.maintainIsRunning() else { return }
 
         let smcClient = SMCBinaryClient()

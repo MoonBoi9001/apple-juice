@@ -27,6 +27,7 @@ struct AppleJuice: ParsableCommand {
             Uninstall.self,
             Visudo.self,
             Changelog.self,
+            SafetyCheck.self,
         ]
     )
 
@@ -94,6 +95,10 @@ enum Paths {
         .appendingPathComponent("Library/LaunchAgents/apple-juice_schedule.plist")
     static let shutdownPath = (NSHomeDirectory() as NSString)
         .appendingPathComponent("Library/LaunchAgents/apple-juice_shutdown.plist")
+    static let safetyDaemonPath = (NSHomeDirectory() as NSString)
+        .appendingPathComponent("Library/LaunchAgents/apple-juice_safety.plist")
+
+    static let chargeStateFile = (configFolder as NSString).appendingPathComponent("charge.state")
 
     static let visudoFolder = "/private/etc/sudoers.d"
     static let visudoFile = "/private/etc/sudoers.d/apple-juice"

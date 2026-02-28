@@ -6,8 +6,9 @@ enum DaemonManager {
 
     // MARK: - Maintain daemon
 
-    /// Generate and install the maintain LaunchAgent plist.
+    /// Generate and install the maintain LaunchAgent plist (and the safety watchdog).
     static func createDaemon() {
+        createSafetyDaemon()
         let binaryPath = Paths.smcPath.replacingOccurrences(of: "/smc", with: "/apple-juice")
 
         let plist = """
@@ -85,6 +86,63 @@ enum DaemonManager {
     /// Remove the maintain daemon plist.
     static func removeDaemon() {
         try? FileManager.default.removeItem(atPath: Paths.daemonPath)
+    }
+
+    // MARK: - Safety watchdog daemon
+
+    /// Generate and install the safety watchdog LaunchAgent plist.
+    /// Runs `safety-check` every 30 minutes to catch orphaned charging states.
+    /// Independent of the maintain daemon -- not removed by `maintain stop`.
+    static func createSafetyDaemon() {
+        let binaryPath = Paths.smcPath.replacingOccurrences(of: "/smc", with: "/apple-juice")
+
+        let plist = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+            <dict>
+                <key>Label</key>
+                <string>com.apple-juice.safety</string>
+                <key>ProgramArguments</key>
+                <array>
+                    <string>\(binaryPath)</string>
+                    <string>safety-check</string>
+                </array>
+                <key>StartInterval</key>
+                <integer>1800</integer>
+                <key>RunAtLoad</key>
+                <true/>
+            </dict>
+        </plist>
+        """
+
+        let path = Paths.safetyDaemonPath
+        let fm = FileManager.default
+        let dir = (path as NSString).deletingLastPathComponent
+        try? fm.createDirectory(atPath: dir, withIntermediateDirectories: true)
+
+        // Check if existing plist is different
+        if let existing = try? String(contentsOfFile: path, encoding: .utf8) {
+            let existingTrimmed = existing.trimmingCharacters(in: .whitespacesAndNewlines)
+            let newTrimmed = plist.trimmingCharacters(in: .whitespacesAndNewlines)
+            if existingTrimmed == newTrimmed {
+                return
+            }
+        }
+
+        try? plist.write(toFile: path, atomically: true, encoding: .utf8)
+
+        ProcessRunner.shell("launchctl enable gui/\(uid)/com.apple-juice.safety")
+        // Bootstrap if not already loaded
+        ProcessRunner.shell("launchctl bootout gui/\(uid)/com.apple-juice.safety 2>/dev/null")
+        ProcessRunner.shell("launchctl bootstrap gui/\(uid) '\(path)' 2>/dev/null")
+    }
+
+    /// Remove the safety watchdog plist and unload it. Only called during uninstall.
+    static func removeSafetyDaemon() {
+        ProcessRunner.shell("launchctl disable gui/\(uid)/com.apple-juice.safety")
+        ProcessRunner.shell("launchctl bootout gui/\(uid)/com.apple-juice.safety 2>/dev/null")
+        try? FileManager.default.removeItem(atPath: Paths.safetyDaemonPath)
     }
 
     // MARK: - Schedule daemon

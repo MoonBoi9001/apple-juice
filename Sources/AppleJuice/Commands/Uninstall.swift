@@ -19,12 +19,23 @@ struct Uninstall: ParsableCommand {
         controller.enableCharging()
         controller.disableDischarging()
 
+        // Verify charging was actually re-enabled before deleting binaries
+        let chargingStatus = getSMCChargingStatus(using: smcClient, caps: caps)
+        if chargingStatus == "disabled" {
+            print("Warning: could not verify charging is re-enabled.")
+            print("This can happen if the smc binary is missing or sudo was denied.")
+            print("Please reboot your Mac to restore normal charging, then retry uninstall.")
+            print("SMC charging keys reset on reboot -- your laptop WILL charge after restarting.")
+            throw ExitCode.failure
+        }
+
         // Stop and unload LaunchAgents before removing plists
         DaemonManager.stopDaemon()
         DaemonManager.disableDaemon()
         DaemonManager.removeDaemon()
         DaemonManager.disableScheduleDaemon()
         DaemonManager.removeScheduleDaemon()
+        DaemonManager.removeSafetyDaemon()
 
         try? FileManager.default.removeItem(atPath: Paths.shutdownPath)
 

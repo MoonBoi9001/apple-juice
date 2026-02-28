@@ -63,6 +63,10 @@ final class MaintainDaemon {
     }
 
     func run() {
+        // Safety: always start from a known-good state.
+        // The main loop will re-apply charging control within seconds.
+        controller.enableCharging()
+
         // Reset CHWA
         if caps.hasCHWA {
             smcClient.write(.CHWA, value: SMCWriteValue.CHWA_disable)

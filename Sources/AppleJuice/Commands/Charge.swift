@@ -31,6 +31,10 @@ struct Charge: ParsableCommand {
         let binaryPath = CommandLine.arguments[0]
         ProcessRunner.run(binaryPath, arguments: ["maintain", "suspend"])
 
+        // Write state file for orphan detection
+        let stateContent = "\(getpid()) charge \(originalMaintainStatus ?? "none")"
+        try? stateContent.write(toFile: Paths.chargeStateFile, atomically: true, encoding: .utf8)
+
         // Setup SMC
         let smcClient = SMCBinaryClient()
         let caps = SMCCapabilities.probe(using: smcClient)
@@ -44,6 +48,7 @@ struct Charge: ParsableCommand {
         signal(SIGTERM, SIG_IGN)
         let sigSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global())
         sigSource.setEventHandler {
+            try? FileManager.default.removeItem(atPath: Paths.chargeStateFile)
             controller.enableCharging()
             controller.changeMagSafeLED(.auto)
             if originalMaintainStatus == "active" && !ProcessHelper.calibrateIsRunning() {
@@ -86,6 +91,9 @@ struct Charge: ParsableCommand {
                 errorCount = 0
             }
         }
+
+        // Clean up state file
+        try? FileManager.default.removeItem(atPath: Paths.chargeStateFile)
 
         // Finalize
         let isCalibrating = ProcessHelper.calibrateIsRunning()
@@ -148,6 +156,10 @@ struct Discharge: ParsableCommand {
         let binaryPath = CommandLine.arguments[0]
         ProcessRunner.run(binaryPath, arguments: ["maintain", "suspend"])
 
+        // Write state file for orphan detection
+        let stateContent = "\(getpid()) discharge \(originalMaintainStatus ?? "none")"
+        try? stateContent.write(toFile: Paths.chargeStateFile, atomically: true, encoding: .utf8)
+
         // Setup SMC
         let smcClient = SMCBinaryClient()
         let caps = SMCCapabilities.probe(using: smcClient)
@@ -161,6 +173,7 @@ struct Discharge: ParsableCommand {
         signal(SIGTERM, SIG_IGN)
         let sigSource = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .global())
         sigSource.setEventHandler {
+            try? FileManager.default.removeItem(atPath: Paths.chargeStateFile)
             controller.disableDischarging()
             controller.changeMagSafeLED(.auto)
             if originalMaintainStatus == "active" && !ProcessHelper.calibrateIsRunning() {
@@ -201,6 +214,9 @@ struct Discharge: ParsableCommand {
                 errorCount = 0
             }
         }
+
+        // Clean up state file
+        try? FileManager.default.removeItem(atPath: Paths.chargeStateFile)
 
         controller.disableDischarging()
         Thread.sleep(forTimeInterval: 5)

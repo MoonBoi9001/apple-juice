@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 
-let appVersion = "2.0.3"
+let appVersion = "2.0.4"
 
 @main
 struct AppleJuice: ParsableCommand {
@@ -71,10 +71,13 @@ extension StartupAware {
 
 enum Paths {
     static let binfolder: String = {
-        // Resolve the actual binary location.
+        // Resolve the binary location without dereferencing package-manager symlinks.
         // When invoked as a bare name (e.g. "apple-juice" via PATH), arguments[0]
-        // has no directory component. URL(fileURLWithPath:) would resolve it relative
-        // to cwd, which is wrong. Use /usr/bin/which to resolve PATH lookups.
+        // has no directory component. Use /usr/bin/which to resolve PATH lookups.
+        // Important: do NOT resolve symlinks for the `which` result — Homebrew's
+        // /opt/homebrew/bin/apple-juice symlink is the stable path that survives
+        // upgrades. Resolving it yields a version-specific Cellar path that breaks
+        // every time the formula is upgraded.
         let arg0 = CommandLine.arguments[0]
         let executableURL: URL
         if arg0.contains("/") {
@@ -83,7 +86,7 @@ enum Paths {
             let result = ProcessRunner.run("/usr/bin/which", arguments: [arg0])
             let resolved = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
             if !resolved.isEmpty {
-                executableURL = URL(fileURLWithPath: resolved).resolvingSymlinksInPath()
+                executableURL = URL(fileURLWithPath: resolved)
             } else {
                 executableURL = URL(fileURLWithPath: arg0).resolvingSymlinksInPath()
             }

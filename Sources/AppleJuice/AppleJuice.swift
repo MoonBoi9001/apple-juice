@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 
-let appVersion = "2.0.0"
+let appVersion = "2.0.1"
 
 @main
 struct AppleJuice: ParsableCommand {
@@ -70,8 +70,23 @@ extension StartupAware {
 
 enum Paths {
     static let binfolder: String = {
-        // Resolve the actual binary location
-        let executableURL = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
+        // Resolve the actual binary location.
+        // When invoked as a bare name (e.g. "apple-juice" via PATH), arguments[0]
+        // has no directory component. URL(fileURLWithPath:) would resolve it relative
+        // to cwd, which is wrong. Use /usr/bin/which to resolve PATH lookups.
+        let arg0 = CommandLine.arguments[0]
+        let executableURL: URL
+        if arg0.contains("/") {
+            executableURL = URL(fileURLWithPath: arg0).resolvingSymlinksInPath()
+        } else {
+            let result = ProcessRunner.run("/usr/bin/which", arguments: [arg0])
+            let resolved = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !resolved.isEmpty {
+                executableURL = URL(fileURLWithPath: resolved).resolvingSymlinksInPath()
+            } else {
+                executableURL = URL(fileURLWithPath: arg0).resolvingSymlinksInPath()
+            }
+        }
         let dir = executableURL.deletingLastPathComponent().path
         let smcPath = (dir as NSString).appendingPathComponent("smc")
         if FileManager.default.isExecutableFile(atPath: smcPath) {

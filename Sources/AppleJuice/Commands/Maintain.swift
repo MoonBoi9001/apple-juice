@@ -4,8 +4,7 @@ import Foundation
 struct Maintain: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "maintain",
-        abstract: "Maintain battery at a target percentage",
-        subcommands: [MaintainDaemonCommand.self]
+        abstract: "Maintain battery at a target percentage"
     )
 
     @Argument(help: "Target percentage (10-100), or: stop, suspend, recover, longevity")

@@ -4,6 +4,16 @@ import Foundation
 enum DaemonManager {
     private static let uid = String(getuid())
 
+    /// Run a shell command and log its stderr on failure.
+    @discardableResult
+    private static func launchctl(_ command: String) -> ProcessResult {
+        let result = ProcessRunner.shell(command)
+        if !result.succeeded && !result.stderr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            log("launchctl: \(result.stderr.trimmingCharacters(in: .whitespacesAndNewlines))")
+        }
+        return result
+    }
+
     // MARK: - Maintain daemon
 
     /// Generate and install the maintain LaunchAgent plist (and the safety watchdog).
@@ -60,27 +70,30 @@ enum DaemonManager {
         try? plist.write(toFile: path, atomically: true, encoding: .utf8)
 
         // Enable daemon
-        ProcessRunner.shell("launchctl enable gui/\(uid)/com.apple-juice.app")
+        launchctl("launchctl enable gui/\(uid)/com.apple-juice.app")
     }
 
-    /// Start the maintain daemon via launchctl bootstrap.
+    /// Start the maintain daemon via launchctl bootstrap + kickstart.
     static func startDaemon() {
         // Bootout any existing instance first (ignore errors if not loaded)
-        ProcessRunner.shell("launchctl bootout gui/\(uid)/com.apple-juice.app 2>/dev/null")
-        // Bootstrap the plist so launchd manages the process from the start
+        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.app")
+        // Bootstrap the plist so launchd manages the process
         if FileManager.default.fileExists(atPath: Paths.daemonPath) {
-            ProcessRunner.shell("launchctl bootstrap gui/\(uid) '\(Paths.daemonPath)' 2>/dev/null")
+            launchctl("launchctl bootstrap gui/\(uid) '\(Paths.daemonPath)'")
         }
+        // RunAtLoad only fires once per login session. After a bootout+bootstrap
+        // cycle, kickstart is needed to actually launch the process.
+        launchctl("launchctl kickstart gui/\(uid)/com.apple-juice.app")
     }
 
     /// Stop and unload the maintain daemon.
     static func stopDaemon() {
-        ProcessRunner.shell("launchctl bootout gui/\(uid)/com.apple-juice.app 2>/dev/null")
+        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.app")
     }
 
     /// Disable the maintain daemon (prevent future loads).
     static func disableDaemon() {
-        ProcessRunner.shell("launchctl disable gui/\(uid)/com.apple-juice.app")
+        launchctl("launchctl disable gui/\(uid)/com.apple-juice.app")
     }
 
     /// Remove the maintain daemon plist.
@@ -132,16 +145,16 @@ enum DaemonManager {
 
         try? plist.write(toFile: path, atomically: true, encoding: .utf8)
 
-        ProcessRunner.shell("launchctl enable gui/\(uid)/com.apple-juice.safety")
+        launchctl("launchctl enable gui/\(uid)/com.apple-juice.safety")
         // Bootstrap if not already loaded
-        ProcessRunner.shell("launchctl bootout gui/\(uid)/com.apple-juice.safety 2>/dev/null")
-        ProcessRunner.shell("launchctl bootstrap gui/\(uid) '\(path)' 2>/dev/null")
+        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.safety")
+        launchctl("launchctl bootstrap gui/\(uid) '\(path)'")
     }
 
     /// Remove the safety watchdog plist and unload it. Only called during uninstall.
     static func removeSafetyDaemon() {
-        ProcessRunner.shell("launchctl disable gui/\(uid)/com.apple-juice.safety")
-        ProcessRunner.shell("launchctl bootout gui/\(uid)/com.apple-juice.safety 2>/dev/null")
+        launchctl("launchctl disable gui/\(uid)/com.apple-juice.safety")
+        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.safety")
         try? FileManager.default.removeItem(atPath: Paths.safetyDaemonPath)
     }
 
@@ -194,16 +207,16 @@ enum DaemonManager {
 
     /// Enable the schedule daemon.
     static func enableScheduleDaemon() {
-        ProcessRunner.shell("launchctl enable gui/\(uid)/com.apple-juice_schedule.app")
+        launchctl("launchctl enable gui/\(uid)/com.apple-juice_schedule.app")
         // Bootstrap if not loaded
         if FileManager.default.fileExists(atPath: Paths.schedulePath) {
-            ProcessRunner.shell("launchctl bootstrap gui/\(uid) '\(Paths.schedulePath)' 2>/dev/null")
+            launchctl("launchctl bootstrap gui/\(uid) '\(Paths.schedulePath)'")
         }
     }
 
     /// Disable the schedule daemon.
     static func disableScheduleDaemon() {
-        ProcessRunner.shell("launchctl disable gui/\(uid)/com.apple-juice_schedule.app")
-        ProcessRunner.shell("launchctl bootout gui/\(uid)/com.apple-juice_schedule.app 2>/dev/null")
+        launchctl("launchctl disable gui/\(uid)/com.apple-juice_schedule.app")
+        launchctl("launchctl bootout gui/\(uid)/com.apple-juice_schedule.app")
     }
 }

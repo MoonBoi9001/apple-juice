@@ -34,6 +34,9 @@ final class MaintainDaemon {
     private var upperLimit: Int
     private var lowerLimit: Int
     private var consecutiveFailures = 0
+
+    // The following state is only accessed from the main run() loop thread
+    // and does not need smcQueue synchronization.
     private var dailyLogTimeout: TimeInterval
     private var updateCheckTimeout: TimeInterval
     private var updateBackoff: TimeInterval = 3600
@@ -80,11 +83,6 @@ final class MaintainDaemon {
 
         // Initialize daily log header if needed
         initDailyLog()
-
-        // Initialize calibrate_next if unset
-        if config.calibrateNext == nil {
-            // Will be set by schedule system
-        }
 
         controller.changeMagSafeLED(.auto)
 
@@ -457,10 +455,5 @@ final class MaintainDaemon {
             log("AlDente is running. Turn it off")
             ProcessRunner.run("/usr/bin/osascript", arguments: ["-e", "quit app \"aldente\""])
         }
-    }
-
-    private func pad(_ s: String, _ width: Int, left: Bool = false) -> String {
-        left ? s.padding(toLength: width, withPad: " ", startingAt: 0)
-             : String(repeating: " ", count: max(0, width - s.count)) + s
     }
 }

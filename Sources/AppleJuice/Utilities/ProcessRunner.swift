@@ -42,6 +42,8 @@ enum ProcessRunner {
             let deadline = DispatchTime.now() + timeout
             let processGroup = DispatchGroup()
             let pipeGroup = DispatchGroup()
+            // Safe: DispatchGroup ensures writes complete before reads.
+            // nonisolated(unsafe) suppresses Swift 6 warnings for cross-isolation access.
             nonisolated(unsafe) var stdoutData = Data()
             nonisolated(unsafe) var stderrData = Data()
 

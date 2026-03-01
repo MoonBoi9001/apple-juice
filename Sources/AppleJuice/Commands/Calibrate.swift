@@ -84,12 +84,12 @@ struct Calibrate: ParsableCommand {
         // Abort if maintain not running
         guard ProcessHelper.maintainIsRunning() else {
             Notifications.displayNotification(
-                message: "Battery maintain need to run before calibration",
+                message: "Battery maintain needs to run before calibration",
                 title: "Battery Calibration Error")
-            log("Calibration Error: Battery maintain need to run before calibration")
+            log("Calibration Error: Battery maintain needs to run before calibration")
             writeCalibrateLog(time: calibrateTime, completed: "No",
                             healthBefore: healthBefore, healthAfter: "%",
-                            error: "Battery maintain need to run before calibration")
+                            error: "Battery maintain needs to run before calibration")
             throw ExitCode.failure
         }
 
@@ -357,10 +357,5 @@ struct Calibrate: ParsableCommand {
             handle.write((entry + "\n").data(using: .utf8) ?? Data())
             handle.closeFile()
         }
-    }
-
-    private func pad(_ s: String, _ width: Int, left: Bool = false) -> String {
-        left ? s.padding(toLength: width, withPad: " ", startingAt: 0)
-             : String(repeating: " ", count: max(0, width - s.count)) + s
     }
 }

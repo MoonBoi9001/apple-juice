@@ -123,7 +123,7 @@ struct Maintain: ParsableCommand {
                 kill(calPid, SIGTERM)
             }
             try? FileManager.default.removeItem(atPath: Paths.calibratePidFile)
-            log("Calibration process have been stopped")
+            log("Calibration process has been stopped")
         }
 
         // Handle longevity preset
@@ -154,7 +154,7 @@ struct Maintain: ParsableCommand {
 
         // Save settings before starting daemon (daemon reads config on recover)
         let config = ConfigStore()
-        if let sub, let _ = Int(sub) {
+        if let sub, Int(sub) != nil {
             try? config.write("maintain_percentage", value: "\(setting) \(sub)")
         } else {
             try? config.write("maintain_percentage", value: setting)

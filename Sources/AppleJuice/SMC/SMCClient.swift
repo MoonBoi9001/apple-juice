@@ -186,13 +186,16 @@ final class IOKitSMCClient: SMCClientProtocol {
 
 // MARK: - SMC IOKit structs
 
-/// Mirrors the kernel's SMCParamStruct used by IOConnectCallStructMethod.
 private struct SMCKeyInfoData {
     var dataSize: UInt32 = 0
     var dataType: UInt32 = 0
     var dataAttributes: UInt8 = 0
 }
 
+/// Mirrors the kernel's SMCParamStruct used by IOConnectCallStructMethod.
+/// Layout verified against macOS 13-15 (Apple Silicon). If the kernel struct
+/// changes in a future macOS release, IOKit reads will fail gracefully and
+/// fall back to SMCBinaryClient.
 private struct SMCParamStruct {
     var key: UInt32 = 0
     var vers = SMCVersion()

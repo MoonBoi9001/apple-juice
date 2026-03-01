@@ -257,13 +257,12 @@ func getMaintainUpperLimit() -> Int {
 /// Kill processes matching a pattern (validated PID + apple-juice check).
 func killProcesses(matching pattern: String) {
     let myPid = getpid()
-    let result = ProcessRunner.shell("pgrep -f '\(pattern)'")
+    let result = ProcessRunner.run("/usr/bin/pgrep", arguments: ["-f", pattern])
     let pids = result.stdout.split(separator: "\n")
     for pidStr in pids {
         guard let pid = pid_t(pidStr.trimmingCharacters(in: .whitespaces)),
               pid != myPid else { continue }
-        // Verify it's an apple-juice process
-        let check = ProcessRunner.shell("ps -p \(pid) -o args= 2>/dev/null")
+        let check = ProcessRunner.run("/bin/ps", arguments: ["-p", String(pid), "-o", "args="])
         if check.stdout.contains("apple-juice") {
             kill(pid, SIGTERM)
         }

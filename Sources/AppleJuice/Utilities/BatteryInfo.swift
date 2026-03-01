@@ -105,8 +105,13 @@ struct BatteryInfo {
 
     // MARK: - Cell voltages
 
-    /// Individual cell voltages in mV.
-    var cellVoltages: [Int]? { arrayProperty("CellVoltage") }
+    /// The BatteryData sub-dictionary containing cell-level information.
+    private var batteryData: NSDictionary? {
+        properties?["BatteryData"] as? NSDictionary
+    }
+
+    /// Individual cell voltages in mV (nested inside BatteryData).
+    var cellVoltages: [Int]? { batteryData?["CellVoltage"] as? [Int] }
 
     /// Cell voltage imbalance (max - min) in mV.
     var cellImbalance: Int? {

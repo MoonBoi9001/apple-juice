@@ -27,6 +27,12 @@ struct Status: ParsableCommand {
         log("Battery at \(battery.accuratePercentage)%, \(battery.voltage)V, \(battery.temperature)\u{00B0}C, \(state.description)")
         log("Battery health \(battery.healthPercentage)%, Cycle \(battery.cycleCountString)")
 
+        if let cells = battery.cellVoltages, !cells.isEmpty {
+            let voltages = cells.map { String($0) }.joined(separator: ", ")
+            let imbalance = battery.cellImbalance ?? 0
+            log("Cell voltages: \(voltages)mV (imbalance: \(imbalance)mV)")
+        }
+
         // Maintain status
         if ProcessHelper.maintainIsRunning() {
             let config = ConfigStore()

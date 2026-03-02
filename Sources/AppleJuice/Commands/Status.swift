@@ -32,25 +32,26 @@ struct Status: ParsableCommand {
             pctDisplay = "\(battery.accuratePercentage)%"
         }
 
-        // Power source and charging state
+        // Power source and charging state.
+        // acPower: adapter detected by pmset.
+        // state: derived from actual SMC currents (CHBI charge, B0AC discharge).
+        //   .notCharging = zero current both ways = battery idle, system on adapter.
+        //   .discharging = battery discharging (unplugged, or adapter can't keep up).
+        //   .charging = current flowing into battery.
         let acPower = BatteryInfo.isACPower
         let chargingStatus = getSMCChargingStatus(using: smcClient, caps: caps)
         let powerDescription: String
-        if acPower {
-            switch state {
-            case .charging:
-                powerDescription = "charging from adapter"
-            case .discharging:
-                powerDescription = "adapter connected, discharging"
-            case .notCharging:
-                if chargingStatus == "disabled" {
-                    powerDescription = "running on adapter, not charging"
-                } else {
-                    powerDescription = "adapter connected, not charging"
-                }
-            }
-        } else {
+        switch (acPower, state) {
+        case (true, .charging):
+            powerDescription = "charging from wall power"
+        case (true, .discharging):
+            powerDescription = "adapter connected, drawing from battery"
+        case (true, .notCharging):
+            powerDescription = "wall power, battery idle"
+        case (false, .discharging):
             powerDescription = "running on battery"
+        case (false, _):
+            powerDescription = "on battery, not discharging"
         }
 
         // Single timestamp header, then clean data lines

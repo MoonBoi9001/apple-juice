@@ -48,8 +48,19 @@ struct BatteryInfo {
     var rawCurrentCapacity: Int? { intProperty("AppleRawCurrentCapacity") }
     var designCapacity: Int? { intProperty("DesignCapacity") }
 
-    /// Accurate battery percentage: CurrentCapacity / MaxCapacity * 100, one decimal place.
-    /// Matches bash `get_accurate_battery_percentage()`.
+    /// macOS-reported capacity (smoothed/adjusted by the battery controller).
+    var currentCapacity: Int? { intProperty("CurrentCapacity") }
+    var maxCapacity: Int? { intProperty("MaxCapacity") }
+
+    /// macOS battery percentage (what the menu bar shows).
+    var macOSPercentage: Int? {
+        guard let max = maxCapacity, let current = currentCapacity, max > 0 else {
+            return nil
+        }
+        return current * 100 / max
+    }
+
+    /// Raw battery percentage: AppleRawCurrentCapacity / AppleRawMaxCapacity * 100.
     var accuratePercentage: String {
         guard let max = rawMaxCapacity, let current = rawCurrentCapacity, max > 0 else {
             return "0"

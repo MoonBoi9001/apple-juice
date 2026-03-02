@@ -10,8 +10,8 @@ struct Maintain: ParsableCommand {
     @Argument(help: "Target percentage (10-100), or: stop, suspend, recover, longevity")
     var target: String
 
-    @Argument(help: "Sailing target percentage (optional lower bound)")
-    var sailingTarget: String?
+    @Argument(help: "Lower bound percentage (recharge threshold)")
+    var lowerBound: String?
 
     @Flag(name: .long, help: "Force discharge to maintain level")
     var forceDischarge = false
@@ -127,10 +127,10 @@ struct Maintain: ParsableCommand {
 
         // Handle longevity preset
         var setting = target
-        var sub = sailingTarget
+        var sub = lowerBound
 
         if target == "longevity" {
-            log("Using longevity preset: 65% with sailing to 60% (optimal for battery lifespan)")
+            log("Longevity mode: maintaining 60-65% (optimal for battery lifespan)")
             setting = "65"
             sub = "60"
             try? ConfigStore().write("longevity_mode", value: "enabled")
@@ -195,7 +195,7 @@ struct MaintainDaemonCommand: ParsableCommand {
     @Argument(help: "Upper percentage limit or 'recover'")
     var setting: String
 
-    @Argument(help: "Lower percentage limit (sailing target)")
+    @Argument(help: "Lower percentage limit (recharge threshold)")
     var subsetting: String?
 
     @Flag(name: .long, help: "Force discharge to maintain level before starting")
@@ -227,7 +227,7 @@ struct MaintainDaemonCommand: ParsableCommand {
             upper = u
             if let sub = subsetting, let l = Int(sub), l >= 0, l <= 100 {
                 guard upper > l else {
-                    log("Error: sailing target \(l) larger than or equal to maintain level \(upper) is not allowed")
+                    log("Error: lower bound \(l) must be less than maintain level \(upper)")
                     throw ExitCode.failure
                 }
                 lower = l

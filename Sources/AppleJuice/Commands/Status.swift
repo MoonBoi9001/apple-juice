@@ -20,18 +20,51 @@ struct Status: ParsableCommand {
 
     private func runNormal() {
         let smcClient = SMCBinaryClient()
+        let caps = SMCCapabilities.probe(using: smcClient)
         let battery = BatteryInfo()
         let state = getChargingState(using: smcClient)
 
+        // Battery percentage
+        let pctDisplay: String
+        if let macos = battery.macOSPercentage {
+            pctDisplay = "\(battery.accuratePercentage)% (macOS: \(macos)%)"
+        } else {
+            pctDisplay = "\(battery.accuratePercentage)%"
+        }
+
+        // Power source and charging state
+        let acPower = BatteryInfo.isACPower
+        let chargingStatus = getSMCChargingStatus(using: smcClient, caps: caps)
+        let powerDescription: String
+        if acPower {
+            switch state {
+            case .charging:
+                powerDescription = "charging from adapter"
+            case .discharging:
+                powerDescription = "adapter connected, discharging"
+            case .notCharging:
+                if chargingStatus == "disabled" {
+                    powerDescription = "running on adapter, not charging"
+                } else {
+                    powerDescription = "adapter connected, not charging"
+                }
+            }
+        } else {
+            powerDescription = "running on battery"
+        }
+
         print("")
-        log("Battery at \(battery.accuratePercentage)%, \(battery.voltage)V, \(battery.temperature)\u{00B0}C, \(state.description)")
-        log("Battery health \(battery.healthPercentage)%, Cycle \(battery.cycleCountString)")
+        log("Battery   \(pctDisplay)")
+        log("Health    \(battery.healthPercentage)%, \(battery.cycleCountString) cycles")
 
         if let cells = battery.cellVoltages, !cells.isEmpty {
             let voltages = cells.map { String($0) }.joined(separator: ", ")
             let imbalance = battery.cellImbalance ?? 0
-            log("Cell voltages: \(voltages)mV (imbalance: \(imbalance)mV)")
+            log("Cells     \(voltages) mV (\(imbalance)mV imbalance)")
         }
+
+        log("Temp      \(battery.temperature)\u{00B0}C, \(battery.voltage)V")
+        log("Power     \(powerDescription)")
 
         // Maintain status
         if ProcessHelper.maintainIsRunning() {
@@ -41,7 +74,7 @@ struct Status: ParsableCommand {
 
             if maintainStatus == "active" {
                 if config.longevityMode == "enabled" {
-                    log("Longevity mode active (65% sailing to 60%)")
+                    log("Mode      longevity, maintaining 60-65%")
                 } else if let mp = maintainPercentage {
                     let parts = mp.split(separator: " ")
                     if let upperStr = parts.first, let upper = Int(upperStr) {
@@ -49,18 +82,18 @@ struct Status: ParsableCommand {
                         if parts.count > 1, let l = Int(parts[1]), l >= 0, l <= 100 {
                             lower = l
                         }
-                        log("Your battery is currently being maintained at \(upper)% with sailing to \(lower)%")
+                        log("Mode      maintaining \(lower)-\(upper)%")
                     }
                 }
             } else {
                 if ProcessHelper.calibrateIsRunning() {
-                    log("Calibration ongoing, maintain is suspended")
+                    log("Mode      calibration in progress, maintain paused")
                 } else {
-                    log("Battery maintain is suspended")
+                    log("Mode      maintain paused")
                 }
             }
         } else {
-            log("Battery maintain is not running")
+            log("Mode      not active")
         }
 
         // Schedule status
@@ -116,7 +149,7 @@ func showSchedule() {
     }
 
     guard let scheduleTxt = config.calibrateSchedule else {
-        log("You haven't scheduled calibration yet")
+        log("Schedule  not configured")
         return
     }
 
@@ -126,7 +159,6 @@ func showSchedule() {
         if let range = display.range(of: " starting") {
             display = String(display[..<range.lowerBound])
         }
-        log(display)
 
         // Show next calibration date
         if let nextTimestamp = config.calibrateNext, let ts = TimeInterval(nextTimestamp) {
@@ -134,11 +166,12 @@ func showSchedule() {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy/MM/dd"
             formatter.locale = Locale(identifier: "en_US_POSIX")
-            log("Next calibration date is \(formatter.string(from: date))")
+            log("Schedule  \(display), next: \(formatter.string(from: date))")
+        } else {
+            log("Schedule  \(display)")
         }
     } else {
-        log("Your calibration schedule is disabled. Enable it by")
-        log("apple-juice schedule enable")
+        log("Schedule  disabled (enable with: apple-juice schedule enable)")
     }
 }
 

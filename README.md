@@ -59,14 +59,14 @@ Three commands. Set it and forget it. Configure [macOS settings](#-setup) for no
 |:---|:---|
 | Maintains charge between **60-65%** | Sweet spot for lithium-ion longevity |
 | Runs on wall power when plugged in | Battery sits idle at low voltage, minimal degradation |
-| **Monthly auto-balance** | Keeps cells calibrated |
-| **Monitors cell imbalance** | Triggers balance when >0.2V drift detected |
+| **Cell imbalance monitoring** | Shows per-cell voltages and imbalance in `status` |
+| **BMS balancing** | Charges to 100% and holds for equalization when cells drift |
 
 </div>
 
 <br>
 
-> Lithium-ion batteries degrade fastest at high charge levels. Keeping your battery between 60-65% dramatically extends its lifespan compared to the default 80-100% cycling. When plugged in, the laptop runs entirely from wall power — the battery sits idle at a low resting voltage (~3.95V/cell vs 4.2V+ at full charge).
+> Lithium-ion cells degrade faster at higher voltages. At 100% charge each cell sits at ~4.2V, accelerating chemical wear. At 60-65% the resting voltage drops to ~3.95V/cell, significantly reducing stress. Once the battery reaches 65%, charging is disabled. The laptop then runs entirely from wall power — no current flows through the battery at all. Charging re-enables if the battery drops below 60%.
 
 <br>
 

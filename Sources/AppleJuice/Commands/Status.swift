@@ -161,8 +161,12 @@ struct Status: ParsableCommand {
 
         // Version
         var versionLine = "v\(appVersion)"
-        if let latest = fetchLatestVersion(), latest != "v\(appVersion)" {
-            versionLine += " (latest: \(latest), brew upgrade moonboi9001/tap/apple-juice)"
+        if let latest = fetchLatestVersion() {
+            if latest == "v\(appVersion)" {
+                versionLine += " (up to date)"
+            } else {
+                versionLine += " (latest: \(latest), brew upgrade moonboi9001/tap/apple-juice)"
+            }
         }
         print("  Version   \(versionLine)")
 

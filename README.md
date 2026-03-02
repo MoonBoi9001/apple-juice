@@ -133,7 +133,7 @@ apple-juice maintain 80 50        # maintain 50-80%
 |:---|:---|
 | `apple-juice calibrate` | Full calibration cycle |
 | `apple-juice calibrate stop` | Stop calibration |
-| `apple-juice balance` | Manual cell balancing |
+| `apple-juice balance` | Charges to 100%, holds 90 min for BMS equalization, then resumes previous mode |
 | `apple-juice schedule` | Configure scheduled calibration |
 | `apple-juice schedule disable` | Disable scheduled calibration |
 

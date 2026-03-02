@@ -20,7 +20,6 @@ struct Status: ParsableCommand {
 
     private func runNormal() {
         let smcClient = SMCBinaryClient()
-        let caps = SMCCapabilities.probe(using: smcClient)
         let battery = BatteryInfo()
         let state = getChargingState(using: smcClient)
 
@@ -39,7 +38,6 @@ struct Status: ParsableCommand {
         //   .discharging = battery discharging (unplugged, or adapter can't keep up).
         //   .charging = current flowing into battery.
         let acPower = BatteryInfo.isACPower
-        let chargingStatus = getSMCChargingStatus(using: smcClient, caps: caps)
         let powerDescription: String
         switch (acPower, state) {
         case (true, .charging):
@@ -67,13 +65,60 @@ struct Status: ParsableCommand {
         print("  Battery   \(pctDisplay), \(battery.temperature)\u{00B0}C")
         print("  Health    \(battery.healthPercentage)%, \(battery.cycleCountString) cycles")
 
+        // Capacity: actual vs design mAh
+        if let rawMax = battery.rawMaxCapacity, let design = battery.designCapacity {
+            print("  Capacity  \(rawMax) / \(design) mAh")
+        }
+
         if let cells = battery.cellVoltages, !cells.isEmpty {
             let voltages = cells.map { String($0) }.joined(separator: ", ")
             let imbalance = battery.cellImbalance ?? 0
-            print("  Cells     \(voltages) mV (\(imbalance)mV imbalance)")
+            var cellLine = "  Cells     \(voltages) mV (\(imbalance)mV imbalance)"
+            if imbalance >= 50 {
+                cellLine += " -- HIGH, run apple-juice balance"
+            } else if imbalance > 20 {
+                cellLine += " -- elevated"
+            }
+            print(cellLine)
+        }
+
+        // Battery current draw and time estimate
+        if let amps = battery.instantAmperage {
+            var currentParts: [String] = []
+            if amps > 0 {
+                currentParts.append("+\(amps) mA")
+            } else if amps < 0 {
+                currentParts.append("\(amps) mA")
+            } else {
+                currentParts.append("0 mA")
+            }
+
+            if state == .charging, let mins = battery.avgTimeToFull, mins > 0 {
+                let h = mins / 60
+                let m = mins % 60
+                currentParts.append(h > 0 ? "\(h)h \(m)m to full" : "\(m)m to full")
+            } else if state == .discharging, let mins = battery.avgTimeToEmpty, mins > 0 {
+                let h = mins / 60
+                let m = mins % 60
+                currentParts.append(h > 0 ? "\(h)h \(m)m remaining" : "\(m)m remaining")
+            }
+
+            print("  Draw      \(currentParts.joined(separator: ", "))")
         }
 
         print("  Power     \(powerDescription)")
+
+        // Adapter details (only when AC connected)
+        if acPower, let watts = battery.adapterWatts {
+            var adapterParts: [String] = ["\(watts)W"]
+            if let mv = battery.adapterVoltage {
+                adapterParts.append("\(mv / 1000)V")
+            }
+            if let desc = battery.adapterDescription {
+                adapterParts.append(desc)
+            }
+            print("  Adapter   \(adapterParts.joined(separator: ", "))")
+        }
 
         // Maintain status
         let modeDescription: String

@@ -6,9 +6,11 @@ enum DaemonManager {
 
     /// Run a shell command and log its stderr on failure.
     @discardableResult
-    private static func launchctl(_ command: String) -> ProcessResult {
+    private static func launchctl(_ command: String, silent: Bool = false) -> ProcessResult {
         let result = ProcessRunner.shell(command)
-        if !result.succeeded && !result.stderr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if !silent && !result.succeeded
+            && !result.stderr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
             log("launchctl: \(result.stderr.trimmingCharacters(in: .whitespacesAndNewlines))")
         }
         return result
@@ -75,8 +77,11 @@ enum DaemonManager {
 
     /// Start the maintain daemon via launchctl bootstrap + kickstart.
     static func startDaemon() {
-        // Bootout any existing instance first (ignore errors if not loaded)
-        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.app")
+        // Bootout any existing instance (silent — service may not be loaded)
+        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.app", silent: true)
+        // Ensure the service is enabled. `maintain stop` disables it, and
+        // createDaemon() skips the enable call when the plist hasn't changed.
+        launchctl("launchctl enable gui/\(uid)/com.apple-juice.app")
         // Bootstrap the plist so launchd manages the process
         if FileManager.default.fileExists(atPath: Paths.daemonPath) {
             launchctl("launchctl bootstrap gui/\(uid) '\(Paths.daemonPath)'")
@@ -88,7 +93,7 @@ enum DaemonManager {
 
     /// Stop and unload the maintain daemon.
     static func stopDaemon() {
-        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.app")
+        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.app", silent: true)
     }
 
     /// Disable the maintain daemon (prevent future loads).
@@ -147,14 +152,14 @@ enum DaemonManager {
 
         launchctl("launchctl enable gui/\(uid)/com.apple-juice.safety")
         // Bootstrap if not already loaded
-        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.safety")
+        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.safety", silent: true)
         launchctl("launchctl bootstrap gui/\(uid) '\(path)'")
     }
 
     /// Remove the safety watchdog plist and unload it. Only called during uninstall.
     static func removeSafetyDaemon() {
         launchctl("launchctl disable gui/\(uid)/com.apple-juice.safety")
-        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.safety")
+        launchctl("launchctl bootout gui/\(uid)/com.apple-juice.safety", silent: true)
         try? FileManager.default.removeItem(atPath: Paths.safetyDaemonPath)
     }
 
@@ -217,6 +222,6 @@ enum DaemonManager {
     /// Disable the schedule daemon.
     static func disableScheduleDaemon() {
         launchctl("launchctl disable gui/\(uid)/com.apple-juice_schedule.app")
-        launchctl("launchctl bootout gui/\(uid)/com.apple-juice_schedule.app")
+        launchctl("launchctl bootout gui/\(uid)/com.apple-juice_schedule.app", silent: true)
     }
 }

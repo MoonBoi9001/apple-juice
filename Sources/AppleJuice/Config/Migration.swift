@@ -102,7 +102,8 @@ enum Migration {
         }
     }
 
-    /// Startup recovery: if charging is disabled but maintain is not running, re-enable charging.
+    /// Startup recovery: if charging is disabled but maintain is not running, attempt to
+    /// restart the daemon. Falls back to re-enabling charging if the restart fails.
     /// Also detects orphaned charge/discharge operations.
     static func startupRecoveryCheck() {
         // Check for orphaned charge/discharge operations
@@ -114,9 +115,24 @@ enum Migration {
         let caps = SMCCapabilities.probe(using: smcClient)
         let chargingStatus = getSMCChargingStatus(using: smcClient, caps: caps)
 
-        if chargingStatus == "disabled" {
-            log("Safety: charging was disabled but maintain is not running. Re-enabling charging.")
-            ChargingController(client: smcClient, caps: caps).enableCharging()
+        guard chargingStatus == "disabled" else { return }
+
+        // Try to restart the daemon if the plist exists
+        if FileManager.default.fileExists(atPath: Paths.daemonPath) {
+            log("Safety: charging disabled, daemon not running. Attempting restart.")
+            DaemonManager.startDaemon()
+
+            // Give the daemon a moment to start
+            Thread.sleep(forTimeInterval: 2)
+
+            if ProcessHelper.maintainIsRunning() {
+                log("Safety: daemon restarted successfully.")
+                return
+            }
         }
+
+        // Fallback: re-enable charging so the Mac doesn't sit unchargeable
+        log("Safety: could not restart daemon. Re-enabling charging.")
+        ChargingController(client: smcClient, caps: caps).enableCharging()
     }
 }

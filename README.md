@@ -163,6 +163,7 @@ apple-juice maintain 80 50        # maintain 50-80%
 
 | Command | Description |
 |:---|:---|
+| `brew upgrade moonboi9001/tap/apple-juice` | Upgrade via Homebrew |
 | `apple-juice update` | Update to latest version |
 | `apple-juice version` | Show current version |
 | `apple-juice changelog` | View latest changelog |

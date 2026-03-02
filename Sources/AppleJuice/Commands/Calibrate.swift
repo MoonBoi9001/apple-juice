@@ -27,6 +27,18 @@ struct Calibrate: ParsableCommand {
             }
         }
 
+        // Skip calibration if cells are well balanced (< 50mV imbalance).
+        // Charging to 100% for rebalancing is unnecessary when cells are tight,
+        // and the high voltage accelerates degradation.
+        if action != "force" && action != "stop" {
+            let battery = BatteryInfo()
+            if let imbalance = battery.cellImbalance, imbalance < 50 {
+                log("Cells balanced (\(imbalance)mV imbalance), skipping calibration")
+                advanceCalibrateNext()
+                return
+            }
+        }
+
         // Kill old calibration process
         if let pid = ProcessHelper.readPid(Paths.calibratePidFile), kill(pid, 0) == 0 {
             kill(pid, SIGTERM)

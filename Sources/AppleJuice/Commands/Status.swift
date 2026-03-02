@@ -161,7 +161,7 @@ func showSchedule(styled: Bool = false) {
     }
 
     guard let scheduleTxt = config.calibrateSchedule else {
-        output("Schedule  not configured")
+        output("Schedule  none")
         return
     }
 
@@ -183,7 +183,7 @@ func showSchedule(styled: Bool = false) {
             output("Schedule  \(display)")
         }
     } else {
-        output("Schedule  disabled (enable with: apple-juice schedule enable)")
+        output("Schedule  disabled")
     }
 }
 

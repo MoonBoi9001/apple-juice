@@ -66,17 +66,22 @@ final class MaintainDaemon {
     }
 
     func run() {
-        // Safety: always start from a known-good state.
-        // The main loop will re-apply charging control within seconds.
-        controller.enableCharging()
-
         // Reset CHWA
         if caps.hasCHWA {
             smcClient.write(.CHWA, value: SMCWriteValue.CHWA_disable)
         }
 
-        log("Starting maintenance, maintaining \(lowerLimit)-\(upperLimit)%")
-        log("Charging to and maintaining at \(upperLimit)% from \(getBatteryPercentage(using: smcClient))%")
+        // Apply charging control immediately on startup rather than waiting
+        // for the first loop iteration. This avoids a brief window where
+        // charging is enabled despite the battery being above the target.
+        let startPct = getBatteryPercentage(using: smcClient)
+        if startPct >= upperLimit {
+            controller.disableCharging()
+            log("Starting maintenance, maintaining \(lowerLimit)-\(upperLimit)% (at \(startPct)%, charging disabled)")
+        } else {
+            controller.enableCharging()
+            log("Starting maintenance, maintaining \(lowerLimit)-\(upperLimit)% (at \(startPct)%, charging)")
+        }
 
         // Write PID file
         writePidFile()

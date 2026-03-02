@@ -159,6 +159,17 @@ struct Status: ParsableCommand {
         // Schedule status
         showSchedule(styled: true)
 
+        // Version
+        var versionLine = "v\(appVersion)"
+        if let latest = fetchLatestVersion() {
+            if latest == "v\(appVersion)" {
+                versionLine += " (up to date)"
+            } else {
+                versionLine += " (latest: \(latest), brew upgrade moonboi9001/tap/apple-juice)"
+            }
+        }
+        print("  Version   \(versionLine)")
+
         print("")
     }
 
@@ -234,6 +245,26 @@ func showSchedule(styled: Bool = false) {
     } else {
         output("Schedule  disabled")
     }
+}
+
+// MARK: - Version check
+
+/// Fetch the latest release tag from GitHub. Returns nil on network failure.
+func fetchLatestVersion() -> String? {
+    let result = ProcessRunner.shell(
+        "curl -sSL --max-time 5 'https://api.github.com/repos/MoonBoi9001/apple-juice/releases/latest'"
+    )
+    guard result.succeeded else { return nil }
+    // Extract "tag_name": "vX.Y.Z"
+    guard let range = result.stdout.range(of: #""tag_name"\s*:\s*"([^"]+)""#, options: .regularExpression) else {
+        return nil
+    }
+    let match = result.stdout[range]
+    guard let valueStart = match.range(of: #":\s*""#, options: .regularExpression)?.upperBound,
+          let valueEnd = match[valueStart...].firstIndex(of: "\"") else {
+        return nil
+    }
+    return String(match[valueStart..<valueEnd])
 }
 
 // MARK: - Process helpers

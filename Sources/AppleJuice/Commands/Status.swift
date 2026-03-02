@@ -53,20 +53,25 @@ struct Status: ParsableCommand {
             powerDescription = "running on battery"
         }
 
+        // Single timestamp header, then clean data lines
+        let timestamp = timestampFormatter.string(from: Date())
         print("")
-        log("Battery   \(pctDisplay)")
-        log("Health    \(battery.healthPercentage)%, \(battery.cycleCountString) cycles")
+        print("  \(timestamp)")
+        print("")
+        print("  Battery   \(pctDisplay)")
+        print("  Health    \(battery.healthPercentage)%, \(battery.cycleCountString) cycles")
 
         if let cells = battery.cellVoltages, !cells.isEmpty {
             let voltages = cells.map { String($0) }.joined(separator: ", ")
             let imbalance = battery.cellImbalance ?? 0
-            log("Cells     \(voltages) mV (\(imbalance)mV imbalance)")
+            print("  Cells     \(voltages) mV (\(imbalance)mV imbalance)")
         }
 
-        log("Temp      \(battery.temperature)\u{00B0}C, \(battery.voltage)V")
-        log("Power     \(powerDescription)")
+        print("  Temp      \(battery.temperature)\u{00B0}C, \(battery.voltage)V")
+        print("  Power     \(powerDescription)")
 
         // Maintain status
+        let modeDescription: String
         if ProcessHelper.maintainIsRunning() {
             let config = ConfigStore()
             let maintainPercentage = config.maintainPercentage
@@ -74,7 +79,7 @@ struct Status: ParsableCommand {
 
             if maintainStatus == "active" {
                 if config.longevityMode == "enabled" {
-                    log("Mode      longevity, maintaining 60-65%")
+                    modeDescription = "longevity, maintaining 60-65%"
                 } else if let mp = maintainPercentage {
                     let parts = mp.split(separator: " ")
                     if let upperStr = parts.first, let upper = Int(upperStr) {
@@ -82,22 +87,27 @@ struct Status: ParsableCommand {
                         if parts.count > 1, let l = Int(parts[1]), l >= 0, l <= 100 {
                             lower = l
                         }
-                        log("Mode      maintaining \(lower)-\(upper)%")
+                        modeDescription = "maintaining \(lower)-\(upper)%"
+                    } else {
+                        modeDescription = "active"
                     }
+                } else {
+                    modeDescription = "active"
                 }
             } else {
                 if ProcessHelper.calibrateIsRunning() {
-                    log("Mode      calibration in progress, maintain paused")
+                    modeDescription = "calibration in progress, maintain paused"
                 } else {
-                    log("Mode      maintain paused")
+                    modeDescription = "maintain paused"
                 }
             }
         } else {
-            log("Mode      not active")
+            modeDescription = "not active"
         }
+        print("  Mode      \(modeDescription)")
 
         // Schedule status
-        showSchedule()
+        showSchedule(styled: true)
 
         print("")
     }
@@ -125,8 +135,10 @@ struct Status: ParsableCommand {
 
 // MARK: - Schedule display
 
-/// Show schedule status matching bash `show_schedule()`.
-func showSchedule() {
+/// Show schedule status. When `styled` is true, uses print with indent (for status output).
+func showSchedule(styled: Bool = false) {
+    let output: (String) -> Void = styled ? { print("  \($0)") } : { log($0) }
+
     let config = ConfigStore()
 
     // Check if schedule LaunchAgent is enabled
@@ -149,7 +161,7 @@ func showSchedule() {
     }
 
     guard let scheduleTxt = config.calibrateSchedule else {
-        log("Schedule  not configured")
+        output("Schedule  not configured")
         return
     }
 
@@ -166,12 +178,12 @@ func showSchedule() {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy/MM/dd"
             formatter.locale = Locale(identifier: "en_US_POSIX")
-            log("Schedule  \(display), next: \(formatter.string(from: date))")
+            output("Schedule  \(display), next: \(formatter.string(from: date))")
         } else {
-            log("Schedule  \(display)")
+            output("Schedule  \(display)")
         }
     } else {
-        log("Schedule  disabled (enable with: apple-juice schedule enable)")
+        output("Schedule  disabled (enable with: apple-juice schedule enable)")
     }
 }
 

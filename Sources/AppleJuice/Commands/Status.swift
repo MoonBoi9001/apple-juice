@@ -19,9 +19,7 @@ struct Status: ParsableCommand {
     }
 
     private func runNormal() {
-        let smcClient = SMCBinaryClient()
         let battery = BatteryInfo()
-        let state = getChargingState(using: smcClient)
 
         // Battery percentage
         let pctDisplay: String
@@ -31,25 +29,21 @@ struct Status: ParsableCommand {
             pctDisplay = "\(battery.accuratePercentage)%"
         }
 
-        // Power source and charging state.
-        // acPower: adapter detected by pmset.
-        // state: derived from actual SMC currents (CHBI charge, B0AC discharge).
-        //   .notCharging = zero current both ways = battery idle, system on adapter.
-        //   .discharging = battery discharging (unplugged, or adapter can't keep up).
-        //   .charging = current flowing into battery.
+        // Power source and charging state from IOKit (more responsive than SMC keys).
         let acPower = BatteryInfo.isACPower
+        let amps = battery.instantAmperage ?? 0
         let powerDescription: String
-        switch (acPower, state) {
-        case (true, .charging):
+        switch (acPower, battery.isCharging, amps) {
+        case (true, true, _):
             powerDescription = "charging from wall power"
-        case (true, .discharging):
+        case (true, _, let a) where a < 0:
             powerDescription = "adapter connected, drawing from battery"
-        case (true, .notCharging):
+        case (true, _, _):
             powerDescription = "wall power, battery idle"
-        case (false, .discharging):
+        case (false, _, let a) where a < 0:
             powerDescription = "running on battery"
-        case (false, _):
-            powerDescription = "on battery, not discharging"
+        case (false, _, _):
+            powerDescription = "on battery"
         }
 
         // Single timestamp header, then clean data lines
@@ -93,11 +87,11 @@ struct Status: ParsableCommand {
                 currentParts.append("0 mA")
             }
 
-            if state == .charging, let mins = battery.avgTimeToFull, mins > 0 {
+            if battery.isCharging, let mins = battery.avgTimeToFull, mins > 0 {
                 let h = mins / 60
                 let m = mins % 60
                 currentParts.append(h > 0 ? "\(h)h \(m)m to full" : "\(m)m to full")
-            } else if state == .discharging, let mins = battery.avgTimeToEmpty, mins > 0 {
+            } else if amps < 0, let mins = battery.avgTimeToEmpty, mins > 0 {
                 let h = mins / 60
                 let m = mins % 60
                 currentParts.append(h > 0 ? "\(h)h \(m)m remaining" : "\(m)m remaining")
@@ -121,14 +115,17 @@ struct Status: ParsableCommand {
         }
 
         // Maintain status
+        let config = ConfigStore()
+        let daemonRunning = ProcessHelper.maintainIsRunning()
+        let longevityConfigured = config.longevityMode == "enabled"
+
         let modeDescription: String
-        if ProcessHelper.maintainIsRunning() {
-            let config = ConfigStore()
+        if daemonRunning {
             let maintainPercentage = config.maintainPercentage
             let maintainStatus = ProcessHelper.readPidFileStatus(Paths.pidFile)
 
             if maintainStatus == "active" {
-                if config.longevityMode == "enabled" {
+                if longevityConfigured {
                     modeDescription = "longevity, maintaining 60-65%"
                 } else if let mp = maintainPercentage {
                     let parts = mp.split(separator: " ")
@@ -151,6 +148,8 @@ struct Status: ParsableCommand {
                     modeDescription = "maintain paused"
                 }
             }
+        } else if longevityConfigured {
+            modeDescription = "longevity enabled but daemon not running, run: apple-juice maintain longevity"
         } else {
             modeDescription = "not active"
         }

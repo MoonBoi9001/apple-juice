@@ -55,11 +55,16 @@ struct Status: ParsableCommand {
         }
 
         // Single timestamp header, then clean data lines
-        let timestamp = timestampFormatter.string(from: Date())
+        let statusTimestamp: String = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd HH:mm"
+            f.locale = Locale(identifier: "en_US_POSIX")
+            return f.string(from: Date())
+        }()
         print("")
-        print("  \(timestamp)")
+        print("  \(statusTimestamp)")
         print("")
-        print("  Battery   \(pctDisplay)")
+        print("  Battery   \(pctDisplay), \(battery.temperature)\u{00B0}C")
         print("  Health    \(battery.healthPercentage)%, \(battery.cycleCountString) cycles")
 
         if let cells = battery.cellVoltages, !cells.isEmpty {
@@ -68,7 +73,6 @@ struct Status: ParsableCommand {
             print("  Cells     \(voltages) mV (\(imbalance)mV imbalance)")
         }
 
-        print("  Temp      \(battery.temperature)\u{00B0}C, \(battery.voltage)V")
         print("  Power     \(powerDescription)")
 
         // Maintain status
@@ -162,7 +166,6 @@ func showSchedule(styled: Bool = false) {
     }
 
     guard let scheduleTxt = config.calibrateSchedule else {
-        output("Schedule  none")
         return
     }
 

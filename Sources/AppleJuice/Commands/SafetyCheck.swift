@@ -36,10 +36,24 @@ struct SafetyCheck: ParsableCommand {
         let caps = SMCCapabilities.probe(using: smcClient)
         let status = getSMCChargingStatus(using: smcClient, caps: caps)
 
-        if status == "disabled" {
-            log("Safety watchdog: charging disabled with no daemon running. Re-enabling.")
-            ChargingController(client: smcClient, caps: caps).enableCharging()
+        guard status == "disabled" else { return }
+
+        // Try to restart the daemon if the plist exists
+        if FileManager.default.fileExists(atPath: Paths.daemonPath) {
+            log("Safety watchdog: charging disabled, daemon not running. Attempting restart.")
+            DaemonManager.startDaemon()
+
+            Thread.sleep(forTimeInterval: 2)
+
+            if ProcessHelper.maintainIsRunning() {
+                log("Safety watchdog: daemon restarted successfully.")
+                return
+            }
         }
+
+        // Fallback: re-enable charging so the Mac doesn't sit unchargeable
+        log("Safety watchdog: could not restart daemon. Re-enabling charging.")
+        ChargingController(client: smcClient, caps: caps).enableCharging()
     }
 }
 

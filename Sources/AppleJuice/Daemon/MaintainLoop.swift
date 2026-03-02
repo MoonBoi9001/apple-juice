@@ -75,7 +75,7 @@ final class MaintainDaemon {
             smcClient.write(.CHWA, value: SMCWriteValue.CHWA_disable)
         }
 
-        log("Starting maintenance at \(upperLimit)% with sailing to \(lowerLimit)%")
+        log("Starting maintenance, maintaining \(lowerLimit)-\(upperLimit)%")
         log("Charging to and maintaining at \(upperLimit)% from \(getBatteryPercentage(using: smcClient))%")
 
         // Write PID file

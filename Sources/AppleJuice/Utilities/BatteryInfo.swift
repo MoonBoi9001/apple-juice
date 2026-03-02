@@ -48,8 +48,19 @@ struct BatteryInfo {
     var rawCurrentCapacity: Int? { intProperty("AppleRawCurrentCapacity") }
     var designCapacity: Int? { intProperty("DesignCapacity") }
 
-    /// Accurate battery percentage: CurrentCapacity / MaxCapacity * 100, one decimal place.
-    /// Matches bash `get_accurate_battery_percentage()`.
+    /// macOS-reported capacity (smoothed/adjusted by the battery controller).
+    var currentCapacity: Int? { intProperty("CurrentCapacity") }
+    var maxCapacity: Int? { intProperty("MaxCapacity") }
+
+    /// macOS battery percentage (what the menu bar shows).
+    var macOSPercentage: Int? {
+        guard let max = maxCapacity, let current = currentCapacity, max > 0 else {
+            return nil
+        }
+        return current * 100 / max
+    }
+
+    /// Raw battery percentage: AppleRawCurrentCapacity / AppleRawMaxCapacity * 100.
     var accuratePercentage: String {
         guard let max = rawMaxCapacity, let current = rawCurrentCapacity, max > 0 else {
             return "0"
@@ -91,8 +102,39 @@ struct BatteryInfo {
         return val
     }
 
+    /// Average time to empty in minutes. Returns nil if not discharging (65535 sentinel).
+    var avgTimeToEmpty: Int? {
+        guard let val = intProperty("AvgTimeToEmpty"), val != 65535 else { return nil }
+        return val
+    }
+
     /// Instantaneous current in mA (signed: positive = charging, negative = discharging).
     var instantAmperage: Int? { intProperty("InstantAmperage") }
+
+    /// Whether the battery is fully charged.
+    var fullyCharged: Bool { (properties?["FullyCharged"] as? Bool) == true }
+
+    /// Whether the battery is currently charging (IOKit perspective).
+    var isCharging: Bool { (properties?["IsCharging"] as? Bool) == true }
+
+    // MARK: - Adapter details
+
+    /// Adapter details dictionary from IOKit.
+    private var adapterDetails: NSDictionary? {
+        properties?["AdapterDetails"] as? NSDictionary
+    }
+
+    /// Adapter wattage (e.g. 100W).
+    var adapterWatts: Int? { adapterDetails?["Watts"] as? Int }
+
+    /// Adapter input voltage in mV (e.g. 20000 = 20V).
+    var adapterVoltage: Int? { adapterDetails?["AdapterVoltage"] as? Int }
+
+    /// Adapter current in mA (e.g. 4990 = ~5A).
+    var adapterCurrent: Int? { adapterDetails?["Current"] as? Int }
+
+    /// Adapter description string (e.g. "pd charger").
+    var adapterDescription: String? { adapterDetails?["Description"] as? String }
 
     // MARK: - Cycle count
 

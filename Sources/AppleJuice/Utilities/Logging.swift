@@ -12,7 +12,7 @@ private let rotationKeepLines = 100
 // MARK: - Date formatters
 
 /// Format: MM/DD/YY-HH:MM:SS (matches bash `date +%D-%T`)
-private let timestampFormatter: DateFormatter = {
+let timestampFormatter: DateFormatter = {
     let f = DateFormatter()
     f.dateFormat = "MM/dd/yy-HH:mm:ss"
     f.locale = Locale(identifier: "en_US_POSIX")

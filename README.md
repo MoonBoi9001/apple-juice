@@ -57,8 +57,8 @@ Three commands. Set it and forget it. Configure [macOS settings](#-setup) for no
 
 | What it does | Why it matters |
 |:---|:---|
-| Maintains charge at **65%** | Sweet spot for lithium-ion longevity |
-| Sails down to **60%** | Avoids micro-charging cycles |
+| Maintains charge between **60-65%** | Sweet spot for lithium-ion longevity |
+| Runs on wall power when plugged in | Battery sits idle at low voltage, minimal degradation |
 | **Monthly auto-balance** | Keeps cells calibrated |
 | **Monitors cell imbalance** | Triggers balance when >0.2V drift detected |
 
@@ -66,7 +66,7 @@ Three commands. Set it and forget it. Configure [macOS settings](#-setup) for no
 
 <br>
 
-> Lithium-ion batteries degrade fastest at high charge levels. Keeping your battery between 60-65% dramatically extends its lifespan compared to the default 80-100% cycling.
+> Lithium-ion batteries degrade fastest at high charge levels. Keeping your battery between 60-65% dramatically extends its lifespan compared to the default 80-100% cycling. When plugged in, the laptop runs entirely from wall power — the battery sits idle at a low resting voltage (~3.95V/cell vs 4.2V+ at full charge).
 
 <br>
 
@@ -92,8 +92,8 @@ apple-juice maintain longevity    # recommended
 Or pick your own level:
 
 ```bash
-apple-juice maintain 80           # stay at 80%
-apple-juice maintain 80 50        # stay at 80%, sail to 50%
+apple-juice maintain 80           # maintain 75-80%
+apple-juice maintain 80 50        # maintain 50-80%
 ```
 
 <br>
@@ -113,9 +113,9 @@ apple-juice maintain 80 50        # stay at 80%, sail to 50%
 
 | Command | Description |
 |:---|:---|
-| `apple-juice maintain longevity` | **Recommended.** Optimized for max lifespan |
-| `apple-juice maintain 80` | Keep at 80%, sail to 75% |
-| `apple-juice maintain 80 50` | Keep at 80%, sail to 50% |
+| `apple-juice maintain longevity` | **Recommended.** Maintain 60-65% for max lifespan |
+| `apple-juice maintain 80` | Maintain 75-80% |
+| `apple-juice maintain 80 50` | Maintain 50-80% |
 | `apple-juice maintain suspend` | Temporarily charge to 100% |
 | `apple-juice maintain recover` | Resume after suspend |
 | `apple-juice maintain stop` | Disable completely |
@@ -133,7 +133,7 @@ apple-juice maintain 80 50        # stay at 80%, sail to 50%
 |:---|:---|
 | `apple-juice calibrate` | Full calibration cycle |
 | `apple-juice calibrate stop` | Stop calibration |
-| `apple-juice balance` | Manual cell balancing |
+| `apple-juice balance` | Charges to 100%, holds 90 min for BMS equalization, then resumes previous mode |
 | `apple-juice schedule` | Configure scheduled calibration |
 | `apple-juice schedule disable` | Disable scheduled calibration |
 
@@ -187,7 +187,7 @@ The v2.0 rewrite eliminates entire classes of vulnerabilities present in the ori
 - Input validation on all user-facing commands
 - Process verification on PID files (confirms apple-juice owns the process)
 
-Executables are root-owned in `/usr/local/co.apple-juice`. SMC access is granted through visudo with specific command allowlists.
+SMC access is granted through visudo with specific command allowlists — only the exact `smc` key/value pairs needed for charging control are permitted.
 
 <br>
 
@@ -199,9 +199,9 @@ Executables are root-owned in `/usr/local/co.apple-juice`. SMC access is granted
 
 apple-juice runs as a background daemon managed by macOS `launchd`. It reads battery state through IOKit and controls charging via SMC keys using the bundled `smc` binary.
 
-The daemon is configured as a LaunchAgent with `KeepAlive`, so macOS automatically restarts it if the process dies unexpectedly (SIGKILL, OOM, crash). On clean shutdown (`maintain stop`), it re-enables charging and stays stopped.
+When the battery reaches the upper limit (65% in longevity mode), charging is disabled via SMC. The laptop continues to run entirely from wall power — the battery sits idle at its resting voltage with no current flowing. Charging only re-enables when the battery drops below the lower limit (60%), which only happens if you unplug.
 
-A startup recovery check runs before every command: if charging is found disabled but the daemon is not running, charging is re-enabled automatically. This ensures a Mac is never left in a non-charging state.
+The daemon is configured as a LaunchAgent with `KeepAlive`, so macOS automatically restarts it if the process dies unexpectedly. On clean shutdown (`maintain stop`), it re-enables charging and stays stopped. A startup recovery check runs before every command: if charging is found disabled but the daemon is not running, charging is re-enabled automatically. This ensures a Mac is never left in a non-charging state.
 
 **Architecture:**
 

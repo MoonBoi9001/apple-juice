@@ -23,17 +23,105 @@ struct Status: ParsableCommand {
         let battery = BatteryInfo()
         let state = getChargingState(using: smcClient)
 
+        // Battery percentage
+        let pctDisplay: String
+        if let macos = battery.macOSPercentage {
+            pctDisplay = "\(battery.accuratePercentage)% (macOS: \(macos)%)"
+        } else {
+            pctDisplay = "\(battery.accuratePercentage)%"
+        }
+
+        // Power source and charging state.
+        // acPower: adapter detected by pmset.
+        // state: derived from actual SMC currents (CHBI charge, B0AC discharge).
+        //   .notCharging = zero current both ways = battery idle, system on adapter.
+        //   .discharging = battery discharging (unplugged, or adapter can't keep up).
+        //   .charging = current flowing into battery.
+        let acPower = BatteryInfo.isACPower
+        let powerDescription: String
+        switch (acPower, state) {
+        case (true, .charging):
+            powerDescription = "charging from wall power"
+        case (true, .discharging):
+            powerDescription = "adapter connected, drawing from battery"
+        case (true, .notCharging):
+            powerDescription = "wall power, battery idle"
+        case (false, .discharging):
+            powerDescription = "running on battery"
+        case (false, _):
+            powerDescription = "on battery, not discharging"
+        }
+
+        // Single timestamp header, then clean data lines
+        let statusTimestamp: String = {
+            let f = DateFormatter()
+            f.dateFormat = "yyyy-MM-dd HH:mm"
+            f.locale = Locale(identifier: "en_US_POSIX")
+            return f.string(from: Date())
+        }()
         print("")
-        log("Battery at \(battery.accuratePercentage)%, \(battery.voltage)V, \(battery.temperature)\u{00B0}C, \(state.description)")
-        log("Battery health \(battery.healthPercentage)%, Cycle \(battery.cycleCountString)")
+        print("  \(statusTimestamp)")
+        print("")
+        print("  Battery   \(pctDisplay), \(battery.temperature)\u{00B0}C")
+        print("  Health    \(battery.healthPercentage)%, \(battery.cycleCountString) cycles")
+
+        // Capacity: actual vs design mAh
+        if let rawMax = battery.rawMaxCapacity, let design = battery.designCapacity {
+            print("  Capacity  \(rawMax) / \(design) mAh")
+        }
 
         if let cells = battery.cellVoltages, !cells.isEmpty {
             let voltages = cells.map { String($0) }.joined(separator: ", ")
             let imbalance = battery.cellImbalance ?? 0
-            log("Cell voltages: \(voltages)mV (imbalance: \(imbalance)mV)")
+            var cellLine = "  Cells     \(voltages) mV (\(imbalance)mV imbalance)"
+            if imbalance >= 50 {
+                cellLine += " -- HIGH, run apple-juice balance"
+            } else if imbalance > 20 {
+                cellLine += " -- elevated"
+            }
+            print(cellLine)
+        }
+
+        // Battery current draw and time estimate
+        if let amps = battery.instantAmperage {
+            var currentParts: [String] = []
+            if amps > 0 {
+                currentParts.append("+\(amps) mA")
+            } else if amps < 0 {
+                currentParts.append("\(amps) mA")
+            } else {
+                currentParts.append("0 mA")
+            }
+
+            if state == .charging, let mins = battery.avgTimeToFull, mins > 0 {
+                let h = mins / 60
+                let m = mins % 60
+                currentParts.append(h > 0 ? "\(h)h \(m)m to full" : "\(m)m to full")
+            } else if state == .discharging, let mins = battery.avgTimeToEmpty, mins > 0 {
+                let h = mins / 60
+                let m = mins % 60
+                currentParts.append(h > 0 ? "\(h)h \(m)m remaining" : "\(m)m remaining")
+            }
+
+            print("  Draw      \(currentParts.joined(separator: ", "))")
+        }
+
+        print("  Power     \(powerDescription)")
+
+        // Adapter details (only when AC connected)
+        if acPower, let watts = battery.adapterWatts {
+            var adapterParts: [String] = ["\(watts)W"]
+            if let mv = battery.adapterVoltage {
+                adapterParts.append("\(mv / 1000)V")
+            }
+            if let desc = battery.adapterDescription {
+                adapterParts.append(desc)
+            }
+            print("  Adapter   \(adapterParts.joined(separator: ", "))")
         }
 
         // Maintain status
+        let modeDescription: String
         if ProcessHelper.maintainIsRunning() {
             let config = ConfigStore()
             let maintainPercentage = config.maintainPercentage
@@ -41,7 +129,7 @@ struct Status: ParsableCommand {
 
             if maintainStatus == "active" {
                 if config.longevityMode == "enabled" {
-                    log("Longevity mode active (65% sailing to 60%)")
+                    modeDescription = "longevity, maintaining 60-65%"
                 } else if let mp = maintainPercentage {
                     let parts = mp.split(separator: " ")
                     if let upperStr = parts.first, let upper = Int(upperStr) {
@@ -49,22 +137,27 @@ struct Status: ParsableCommand {
                         if parts.count > 1, let l = Int(parts[1]), l >= 0, l <= 100 {
                             lower = l
                         }
-                        log("Your battery is currently being maintained at \(upper)% with sailing to \(lower)%")
+                        modeDescription = "maintaining \(lower)-\(upper)%"
+                    } else {
+                        modeDescription = "active"
                     }
+                } else {
+                    modeDescription = "active"
                 }
             } else {
                 if ProcessHelper.calibrateIsRunning() {
-                    log("Calibration ongoing, maintain is suspended")
+                    modeDescription = "calibration in progress, maintain paused"
                 } else {
-                    log("Battery maintain is suspended")
+                    modeDescription = "maintain paused"
                 }
             }
         } else {
-            log("Battery maintain is not running")
+            modeDescription = "not active"
         }
+        print("  Mode      \(modeDescription)")
 
         // Schedule status
-        showSchedule()
+        showSchedule(styled: true)
 
         print("")
     }
@@ -92,8 +185,10 @@ struct Status: ParsableCommand {
 
 // MARK: - Schedule display
 
-/// Show schedule status matching bash `show_schedule()`.
-func showSchedule() {
+/// Show schedule status. When `styled` is true, uses print with indent (for status output).
+func showSchedule(styled: Bool = false) {
+    let output: (String) -> Void = styled ? { print("  \($0)") } : { log($0) }
+
     let config = ConfigStore()
 
     // Check if schedule LaunchAgent is enabled
@@ -116,7 +211,6 @@ func showSchedule() {
     }
 
     guard let scheduleTxt = config.calibrateSchedule else {
-        log("You haven't scheduled calibration yet")
         return
     }
 
@@ -126,7 +220,6 @@ func showSchedule() {
         if let range = display.range(of: " starting") {
             display = String(display[..<range.lowerBound])
         }
-        log(display)
 
         // Show next calibration date
         if let nextTimestamp = config.calibrateNext, let ts = TimeInterval(nextTimestamp) {
@@ -134,11 +227,12 @@ func showSchedule() {
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy/MM/dd"
             formatter.locale = Locale(identifier: "en_US_POSIX")
-            log("Next calibration date is \(formatter.string(from: date))")
+            output("Schedule  \(display), next: \(formatter.string(from: date))")
+        } else {
+            output("Schedule  \(display)")
         }
     } else {
-        log("Your calibration schedule is disabled. Enable it by")
-        log("apple-juice schedule enable")
+        output("Schedule  disabled")
     }
 }
 

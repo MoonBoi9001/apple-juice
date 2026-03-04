@@ -29,7 +29,8 @@ struct AppleJuice: ParsableCommand {
             Changelog.self,
             SafetyCheck.self,
             MaintainDaemonCommand.self,
-        ]
+        ],
+        aliases: ["aj"]
     )
 
     /// Runs before any subcommand. Handles migration and safety recovery.

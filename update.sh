@@ -91,6 +91,8 @@ fi
 sudo mkdir -p /usr/local/bin
 sudo ln -sf "$binfolder/apple-juice" /usr/local/bin/apple-juice
 sudo chown -h root:wheel /usr/local/bin/apple-juice
+sudo ln -sf "$binfolder/apple-juice" /usr/local/bin/aj
+sudo chown -h root:wheel /usr/local/bin/aj
 sudo ln -sf "$binfolder/smc" /usr/local/bin/smc
 sudo chown -h root:wheel /usr/local/bin/smc
 

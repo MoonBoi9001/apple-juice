@@ -126,8 +126,17 @@ enum DaemonManager {
                     <string>\(binaryPath)</string>
                     <string>safety-check</string>
                 </array>
-                <key>StartInterval</key>
-                <integer>1800</integer>
+                <key>StartCalendarInterval</key>
+                <array>
+                    <dict>
+                        <key>Minute</key>
+                        <integer>0</integer>
+                    </dict>
+                    <dict>
+                        <key>Minute</key>
+                        <integer>30</integer>
+                    </dict>
+                </array>
                 <key>RunAtLoad</key>
                 <true/>
             </dict>
@@ -139,21 +148,26 @@ enum DaemonManager {
         let dir = (path as NSString).deletingLastPathComponent
         try? fm.createDirectory(atPath: dir, withIntermediateDirectories: true)
 
-        // Check if existing plist is different
+        // Only rewrite the plist if content has changed
+        let needsWrite: Bool
         if let existing = try? String(contentsOfFile: path, encoding: .utf8) {
             let existingTrimmed = existing.trimmingCharacters(in: .whitespacesAndNewlines)
             let newTrimmed = plist.trimmingCharacters(in: .whitespacesAndNewlines)
-            if existingTrimmed == newTrimmed {
-                return
-            }
+            needsWrite = existingTrimmed != newTrimmed
+        } else {
+            needsWrite = true
         }
 
-        try? plist.write(toFile: path, atomically: true, encoding: .utf8)
+        if needsWrite {
+            try? plist.write(toFile: path, atomically: true, encoding: .utf8)
+        }
 
+        // Always run launchctl calls -- the plist being on disk doesn't mean
+        // the service is loaded in launchd.
         launchctl("launchctl enable gui/\(uid)/com.apple-juice.safety")
-        // Bootstrap if not already loaded
         launchctl("launchctl bootout gui/\(uid)/com.apple-juice.safety", silent: true)
         launchctl("launchctl bootstrap gui/\(uid) '\(path)'")
+        launchctl("launchctl kickstart gui/\(uid)/com.apple-juice.safety")
     }
 
     /// Remove the safety watchdog plist and unload it. Only called during uninstall.

@@ -194,14 +194,18 @@ final class MaintainDaemon {
                         break
                     }
 
-                    if consecutiveControlFailures >= 5 {
-                        log("Error: SMC charging control failed 5 consecutive times, exiting for launchd restart")
+                    if consecutiveControlFailures >= 10 {
+                        log("Error: SMC charging control failed 10 consecutive times, exiting for launchd restart")
                         fatalExit()
                     }
                 }
 
-                let currentSleep: UInt32 = smcQueue.sync { sleepDuration }
-                Thread.sleep(forTimeInterval: TimeInterval(currentSleep))
+                let (currentSleep, controlFailing): (UInt32, Bool) = smcQueue.sync {
+                    (sleepDuration, consecutiveControlFailures > 0)
+                }
+                // Back off to 30s between retries when SMC writes aren't taking
+                // effect (e.g. Power Nap partial-wake states).
+                Thread.sleep(forTimeInterval: controlFailing ? 30 : TimeInterval(currentSleep))
             } else {
                 // Suspended
                 Thread.sleep(forTimeInterval: 60)

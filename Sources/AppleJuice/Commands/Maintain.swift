@@ -100,6 +100,11 @@ struct Maintain: ParsableCommand {
         if let pid {
             if kill(pid, 0) == 0 {
                 kill(pid, SIGTERM)
+                // Wait for old daemon to exit before starting new one
+                for _ in 0..<50 {
+                    if kill(pid, 0) != 0 { break }
+                    Thread.sleep(forTimeInterval: 0.1)
+                }
             }
         }
 

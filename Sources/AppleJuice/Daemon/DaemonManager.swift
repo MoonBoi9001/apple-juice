@@ -77,17 +77,16 @@ enum DaemonManager {
 
     /// Start the maintain daemon via launchctl bootstrap + kickstart.
     static func startDaemon() {
-        // Bootout any existing instance (silent — service may not be loaded)
         launchctl("launchctl bootout gui/\(uid)/com.apple-juice.app", silent: true)
-        // Ensure the service is enabled. `maintain stop` disables it, and
-        // createDaemon() skips the enable call when the plist hasn't changed.
+        Thread.sleep(forTimeInterval: 0.5)
         launchctl("launchctl enable gui/\(uid)/com.apple-juice.app")
-        // Bootstrap the plist so launchd manages the process
         if FileManager.default.fileExists(atPath: Paths.daemonPath) {
-            launchctl("launchctl bootstrap gui/\(uid) '\(Paths.daemonPath)'")
+            let result = launchctl("launchctl bootstrap gui/\(uid) '\(Paths.daemonPath)'")
+            if !result.succeeded {
+                Thread.sleep(forTimeInterval: 1)
+                launchctl("launchctl bootstrap gui/\(uid) '\(Paths.daemonPath)'")
+            }
         }
-        // RunAtLoad only fires once per login session. After a bootout+bootstrap
-        // cycle, kickstart is needed to actually launch the process.
         launchctl("launchctl kickstart gui/\(uid)/com.apple-juice.app")
     }
 
@@ -166,8 +165,15 @@ enum DaemonManager {
         // the service is loaded in launchd.
         launchctl("launchctl enable gui/\(uid)/com.apple-juice.safety")
         launchctl("launchctl bootout gui/\(uid)/com.apple-juice.safety", silent: true)
-        launchctl("launchctl bootstrap gui/\(uid) '\(path)'")
-        launchctl("launchctl kickstart gui/\(uid)/com.apple-juice.safety")
+        Thread.sleep(forTimeInterval: 0.5)
+        let result = launchctl("launchctl bootstrap gui/\(uid) '\(path)'")
+        if !result.succeeded {
+            Thread.sleep(forTimeInterval: 1)
+            launchctl("launchctl bootstrap gui/\(uid) '\(path)'")
+        }
+        // No kickstart -- let StartCalendarInterval handle timing.
+        // Kickstarting here races with daemon startup since createSafetyDaemon()
+        // is called from createDaemon() just before startDaemon().
     }
 
     /// Remove the safety watchdog plist and unload it. Only called during uninstall.

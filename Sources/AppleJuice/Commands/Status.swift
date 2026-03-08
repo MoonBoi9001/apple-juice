@@ -155,9 +155,6 @@ struct Status: ParsableCommand {
         }
         print("  Mode      \(modeDescription)")
 
-        // Schedule status
-        showSchedule(styled: true)
-
         // Version
         var versionLine = "v\(appVersion)"
         if let latest = fetchLatestVersion() {
@@ -190,59 +187,6 @@ struct Status: ParsableCommand {
         let maintainPct = config.maintainPercentage?.split(separator: " ").first.map(String.init) ?? ""
 
         print("\(pct),\(remaining),\(chargingStatus),\(dischargingStatus),\(maintainPct)")
-    }
-}
-
-// MARK: - Schedule display
-
-/// Show schedule status. When `styled` is true, uses print with indent (for status output).
-func showSchedule(styled: Bool = false) {
-    let output: (String) -> Void = styled ? { print("  \($0)") } : { log($0) }
-
-    let config = ConfigStore()
-
-    // Check if schedule LaunchAgent is enabled
-    let uid = ProcessRunner.shell("id -u").stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-    let launchctlOutput = ProcessRunner.shell("launchctl print gui/\(uid)").stdout
-
-    var scheduleEnabled = false
-    if launchctlOutput.contains("=> enabled") {
-        // New launchctl format
-        scheduleEnabled = launchctlOutput.contains("com.apple-juice_schedule.app")
-            && launchctlOutput.split(separator: "\n").contains {
-                $0.contains("enabled") && $0.contains("com.apple-juice_schedule.app")
-            }
-    } else {
-        // Old format: "=> false" means enabled (inverted logic matches bash)
-        let line = launchctlOutput.split(separator: "\n").first {
-            $0.contains("=> false") && $0.contains("com.apple-juice_schedule.app")
-        }
-        scheduleEnabled = line != nil
-    }
-
-    guard let scheduleTxt = config.calibrateSchedule else {
-        return
-    }
-
-    if scheduleEnabled {
-        // Trim " starting..." suffix if present
-        var display = scheduleTxt
-        if let range = display.range(of: " starting") {
-            display = String(display[..<range.lowerBound])
-        }
-
-        // Show next calibration date
-        if let nextTimestamp = config.calibrateNext, let ts = TimeInterval(nextTimestamp) {
-            let date = Date(timeIntervalSince1970: ts)
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy/MM/dd"
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            output("Schedule  \(display), next: \(formatter.string(from: date))")
-        } else {
-            output("Schedule  \(display)")
-        }
-    } else {
-        output("Schedule  disabled")
     }
 }
 

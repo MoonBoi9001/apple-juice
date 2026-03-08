@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 
-let appVersion = "2.1.3"
+let appVersion = "3.0.0"
 
 @main
 struct AppleJuice: ParsableCommand {
@@ -16,14 +16,8 @@ struct AppleJuice: ParsableCommand {
             Discharge.self,
             Calibrate.self,
             Balance.self,
-            Schedule.self,
             Logs.self,
-            DailyLog.self,
-            CalibrateLog.self,
-            SSD.self,
-            SSDLog.self,
             Update.self,
-            Reinstall.self,
             Uninstall.self,
             Visudo.self,
             Changelog.self,
@@ -58,7 +52,6 @@ extension Charge: StartupAware {}
 extension Discharge: StartupAware {}
 extension Calibrate: StartupAware {}
 extension Balance: StartupAware {}
-extension Schedule: StartupAware {}
 extension Update: StartupAware {}
 extension Uninstall: StartupAware {}
 

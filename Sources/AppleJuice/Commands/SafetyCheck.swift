@@ -29,8 +29,8 @@ struct SafetyCheck: ParsableCommand {
                 // the last sleep, awakeElapsed clamps to uptime (i.e. the
                 // full duration since the most recent boot/wake).
                 let awakeElapsed = min(wallElapsed, uptime)
-                if awakeElapsed > 300 {
-                    log("Safety watchdog: daemon PID file is stale (>5 min awake time). Killing for restart.")
+                if awakeElapsed > 120 {
+                    log("Safety watchdog: daemon PID file is stale (>2 min awake time). Killing for restart.")
                     if let pid = ProcessHelper.readPid(Paths.pidFile) {
                         kill(pid, SIGKILL)
                     }

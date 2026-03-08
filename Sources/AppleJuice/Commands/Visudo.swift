@@ -4,7 +4,8 @@ import Foundation
 struct Visudo: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "visudo",
-        abstract: "Configure passwordless sudo for SMC operations"
+        abstract: "Configure passwordless sudo for SMC operations",
+        shouldDisplay: false
     )
 
     func run() throws {

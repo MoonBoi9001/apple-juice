@@ -4,7 +4,8 @@ import Foundation
 struct Charge: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "charge",
-        abstract: "Charge battery to a target percentage"
+        abstract: "Charge battery to a target percentage",
+        shouldDisplay: false
     )
 
     @Argument(help: "Target percentage (1-100) or 'stop'")
@@ -123,7 +124,8 @@ struct Charge: ParsableCommand {
 struct Discharge: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "discharge",
-        abstract: "Discharge battery to a target percentage"
+        abstract: "Discharge battery to a target percentage",
+        shouldDisplay: false
     )
 
     @Argument(help: "Target percentage (1-100) or 'stop'")

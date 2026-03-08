@@ -143,9 +143,14 @@ struct Maintain: ParsableCommand {
             // Auto-enable monthly balance
             if ConfigStore().calibrateSchedule == nil {
                 log("Setting up monthly balance (recommended for longevity mode)")
-                ProcessRunner.run(binaryPath, arguments: ["schedule"])
+                try? ConfigStore().write("calibrate_schedule", value: "Schedule calibration on day 1 at 09:00")
+                let intervals: [[String: Any]] = [["Day": 1, "Hour": 9, "Minute": 0]]
+                DaemonManager.createScheduleDaemon(calendarIntervals: intervals)
+                // Set calibrate_next to 1 month from now
+                let next = Calendar.current.date(byAdding: .month, value: 1, to: Date())!
+                try? ConfigStore().write("calibrate_next", value: String(Int(next.timeIntervalSince1970)))
             }
-            ProcessRunner.run(binaryPath, arguments: ["schedule", "enable"])
+            DaemonManager.enableScheduleDaemon()
         } else {
             try? ConfigStore().write("longevity_mode", value: nil)
         }

@@ -1,0 +1,32 @@
+language: "en-US"
+
+reviews:
+  profile: "assertive"
+  high_level_summary: true
+  sequence_diagrams: true
+  poem: false
+  auto_review:
+    enabled: true
+    base_branches:
+      - main
+    drafts: false
+    auto_incremental_review: true
+  path_instructions:
+    - path: "Sources/AppleJuice/Daemon/**"
+      instructions: >
+        This directory contains the maintain daemon and safety watchdog.
+        Pay close attention to SMC charging control safety invariants,
+        sleep/wake correctness, launchd lifecycle (bootout/bootstrap/kickstart),
+        and PID file management. Any path that leaves charging disabled
+        without a running daemon is a critical bug.
+    - path: "Sources/AppleJuice/Commands/**"
+      instructions: >
+        CLI commands using swift-argument-parser. Watch for correct
+        error handling and that uninstall always re-enables charging.
+
+tools:
+  swiftlint:
+    enabled: true
+
+chat:
+  auto_reply: true

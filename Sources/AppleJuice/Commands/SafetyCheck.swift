@@ -15,16 +15,29 @@ struct SafetyCheck: ParsableCommand {
         // Check for orphaned charge/discharge operations first
         recoverOrphanedChargeState()
 
-        // If the maintain daemon is alive and responsive, nothing to do
         if ProcessHelper.maintainIsRunning() {
-            // Also check for a hung daemon: PID file exists but hasn't been updated
+            // Daemon process is alive. Check for a hung loop by comparing PID
+            // file staleness against system uptime (not wall clock). System
+            // uptime doesn't advance during sleep, so the PID file won't
+            // appear stale just because the Mac was asleep.
             if let attrs = try? FileManager.default.attributesOfItem(atPath: Paths.pidFile),
-               let modified = attrs[.modificationDate] as? Date,
-               Date().timeIntervalSince(modified) > 300 {
-                log("Safety watchdog: daemon PID file is stale (>5 min). Re-enabling charging.")
-                let smcClient = SMCBinaryClient()
-                let caps = SMCCapabilities.probe(using: smcClient)
-                ChargingController(client: smcClient, caps: caps).enableCharging()
+               let modified = attrs[.modificationDate] as? Date {
+                let wallElapsed = Date().timeIntervalSince(modified)
+                let uptime = ProcessInfo.processInfo.systemUptime
+                // How long the system has been awake since the PID file was
+                // last written. Approximate: if the file was modified before
+                // the last sleep, awakeElapsed clamps to uptime (i.e. the
+                // full duration since the most recent boot/wake).
+                let awakeElapsed = min(wallElapsed, uptime)
+                if awakeElapsed > 300 {
+                    log("Safety watchdog: daemon PID file is stale (>5 min awake time). Killing for restart.")
+                    if let pid = ProcessHelper.readPid(Paths.pidFile) {
+                        kill(pid, SIGKILL)
+                    }
+                    // KeepAlive (SuccessfulExit: false) will restart the daemon.
+                    // Don't re-enable charging here -- the restarted daemon will
+                    // set the correct state.
+                }
             }
             return
         }

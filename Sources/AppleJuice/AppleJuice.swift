@@ -100,8 +100,6 @@ enum Paths {
     static let calibratePidFile = (configFolder as NSString).appendingPathComponent("calibrate.pid")
     static let dailyLogFile = (configFolder as NSString).appendingPathComponent("daily.log")
     static let calibrateLogFile = (configFolder as NSString).appendingPathComponent("calibrate.log")
-    static let ssdLogFile = (configFolder as NSString).appendingPathComponent("ssd.log")
-
     static let daemonPath = (NSHomeDirectory() as NSString)
         .appendingPathComponent("Library/LaunchAgents/apple-juice.plist")
     static let schedulePath = (NSHomeDirectory() as NSString)

@@ -134,25 +134,26 @@ struct Maintain: ParsableCommand {
         var setting = target
         var sub = lowerBound
 
+        let config = ConfigStore()
         if target == "longevity" {
             log("Longevity mode: maintaining 60-65% (optimal for battery lifespan)")
             setting = "65"
             sub = "60"
-            try? ConfigStore().write("longevity_mode", value: "enabled")
+            try? config.write("longevity_mode", value: "enabled")
 
             // Auto-enable monthly balance
-            if ConfigStore().calibrateSchedule == nil {
+            if config.calibrateSchedule == nil {
                 log("Setting up monthly balance (recommended for longevity mode)")
-                try? ConfigStore().write("calibrate_schedule", value: "Schedule calibration on day 1 at 09:00")
+                try? config.write("calibrate_schedule", value: "Schedule calibration on day 1 at 09:00")
                 let intervals: [[String: Any]] = [["Day": 1, "Hour": 9, "Minute": 0]]
                 DaemonManager.createScheduleDaemon(calendarIntervals: intervals)
-                // Set calibrate_next to 1 month from now
-                let next = Calendar.current.date(byAdding: .month, value: 1, to: Date())!
-                try? ConfigStore().write("calibrate_next", value: String(Int(next.timeIntervalSince1970)))
+                if let next = Calendar.current.date(byAdding: .month, value: 1, to: Date()) {
+                    try? config.write("calibrate_next", value: String(Int(next.timeIntervalSince1970)))
+                }
             }
             DaemonManager.enableScheduleDaemon()
         } else {
-            try? ConfigStore().write("longevity_mode", value: nil)
+            try? config.write("longevity_mode", value: nil)
         }
 
         // Validate percentage
@@ -162,7 +163,6 @@ struct Maintain: ParsableCommand {
         }
 
         // Save settings before starting daemon (daemon reads config on recover)
-        let config = ConfigStore()
         if let sub, Int(sub) != nil {
             try? config.write("maintain_percentage", value: "\(setting) \(sub)")
         } else {

@@ -1,0 +1,106 @@
+language: "en-US"
+
+reviews:
+  profile: "assertive"
+  high_level_summary: true
+  sequence_diagrams: true
+  poem: false
+  auto_review:
+    enabled: true
+    base_branches:
+      - main
+    drafts: false
+    auto_incremental_review: true
+  path_instructions:
+    - path: "Sources/AppleJuice/Daemon/**"
+      instructions: >
+        apple-juice is a macOS battery charging manager that controls charging
+        via SMC (System Management Controller) keys. The maintain daemon runs
+        as a LaunchAgent with KeepAlive (SuccessfulExit: false) so launchd
+        restarts it on crash.
+
+        Critical safety invariant: the Mac must never be left with charging
+        disabled and no daemon running. Every code path that disables charging
+        must have a corresponding recovery mechanism. Three overlapping layers
+        provide this: (1) launchd KeepAlive auto-restart, (2) the safety
+        watchdog running every 30 minutes, (3) startup recovery before any CLI
+        command.
+
+        The daemon loop runs on a serial DispatchQueue (smcQueue) that
+        serialises all SMC reads/writes across the main loop, signal handlers,
+        and sleep/wake callbacks. Watch for thread safety -- any SMC access
+        outside smcQueue is a race condition.
+
+        Sleep/wake handling is critical. willSleep disables discharging and
+        either disables or enables charging depending on battery level, then
+        schedules a pmset wake if charging is needed. didWake cancels the
+        scheduled wake and resumes daemon control. The PID file is not updated
+        during sleep, so staleness checks must use system uptime (monotonic
+        clock that doesn't advance during sleep), not wall clock time.
+
+        SMC writes can fail silently during Power Nap partial-wake states.
+        The daemon tracks consecutive control failures and exits after 10 for
+        launchd restart. A 30s backoff applies when failures are occurring.
+
+        Signal-based IPC uses SIGUSR1 with a sig.pid file for commands like
+        suspend/recover. The daemon reads the command from sig.pid, executes
+        it under smcQueue, and sends SIGUSR1 back as ACK.
+
+        All PID files and state files must use atomic writes. The charge.state
+        file tracks active charge/discharge operations with format
+        "<PID> <operation> <maintain_status>" for orphan recovery.
+
+    - path: "Sources/AppleJuice/Commands/**"
+      instructions: >
+        CLI commands using swift-argument-parser. Key safety concerns:
+
+        Uninstall must verify charging is re-enabled via SMC readback BEFORE
+        deleting binaries. If verification fails, it must abort and tell the
+        user to reboot (SMC keys reset on boot).
+
+        Charge and discharge commands suspend the maintain daemon via SIGUSR1
+        IPC before starting, write a charge.state file for orphan detection,
+        and recover maintain on completion or failure. If the charge/discharge
+        process dies unexpectedly, the safety watchdog detects the orphaned
+        state file and re-enables charging.
+
+        The safety-check command (SafetyCheck.swift) is the periodic watchdog.
+        It must never re-enable charging while the daemon is running -- that
+        fights the daemon's own control loop. Stale PID detection uses a 120s
+        threshold against ProcessInfo.processInfo.systemUptime (not wall clock
+        time) because the PID file isn't updated during sleep.
+
+        Calibrate and balance are orchestrators that shell out to the charge
+        and discharge subcommands via ProcessRunner. They don't interact with
+        SMC directly. Sleep prevention (IOPMAssertion) and SIGTERM handling
+        live in the charge/discharge commands, not in calibrate/balance.
+
+    - path: "Sources/AppleJuice/Utilities/**"
+      instructions: >
+        Utility code for SMC access, battery info, and process management.
+
+        SMC access has two paths: IOKitSMCClient for fast kernel-level reads
+        (no sudo), and SMCBinaryClient for writes via a sudoers-allowlisted
+        smc binary. All SMC writes require sudo and go through the smc binary
+        at /usr/local/co.apple-juice/smc or the Homebrew bin directory.
+
+        SMCCapabilities.probe() detects which SMC keys exist on this machine.
+        Different Apple Silicon models use different keys (CH0B vs CH0C for
+        charge inhibit, CH0I vs CHIE for discharge control). Code must never
+        hardcode key assumptions -- always use the probed capabilities.
+
+        BatteryInfo reads from IOKit (AppleSmartBattery service) and provides
+        raw vs smoothed capacity, cell voltages, imbalance detection, and
+        charge/discharge currents. accuratePercentage uses raw values from
+        the BMS, not the smoothed macOS percentage.
+
+        ProcessHelper verifies PIDs by checking both process existence
+        (kill(pid, 0)) and that the process is actually apple-juice (not a
+        reused PID). All PID file reads must handle missing/malformed files.
+
+tools:
+  swiftlint:
+    enabled: true
+
+chat:
+  auto_reply: true

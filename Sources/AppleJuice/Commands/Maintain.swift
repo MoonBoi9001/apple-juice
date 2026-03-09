@@ -134,20 +134,37 @@ struct Maintain: ParsableCommand {
         var setting = target
         var sub = lowerBound
 
+        let config = ConfigStore()
         if target == "longevity" {
             log("Longevity mode: maintaining 60-65% (optimal for battery lifespan)")
             setting = "65"
             sub = "60"
-            try? ConfigStore().write("longevity_mode", value: "enabled")
+            try? config.write("longevity_mode", value: "enabled")
 
             // Auto-enable monthly balance
-            if ConfigStore().calibrateSchedule == nil {
+            if config.calibrateSchedule == nil {
                 log("Setting up monthly balance (recommended for longevity mode)")
-                ProcessRunner.run(binaryPath, arguments: ["schedule"])
+                try? config.write("calibrate_schedule", value: "Schedule calibration on day 1 at 09:00")
+                var components = DateComponents()
+                components.day = 1
+                components.hour = 9
+                components.minute = 0
+                let next = Calendar.current.nextDate(after: Date(), matching: components, matchingPolicy: .nextTime)
+                    ?? Calendar.current.date(byAdding: .month, value: 1, to: Date())
+                if let next {
+                    try? config.write("calibrate_next", value: String(Int(next.timeIntervalSince1970)))
+                }
             }
-            ProcessRunner.run(binaryPath, arguments: ["schedule", "enable"])
+
+            // Always recreate plist -- recovers from missing/corrupt files
+            let intervals: [[String: Any]] = [["Day": 1, "Hour": 9, "Minute": 0]]
+            DaemonManager.createScheduleDaemon(calendarIntervals: intervals)
+            if !FileManager.default.fileExists(atPath: Paths.schedulePath) {
+                log("Warning: failed to create schedule plist at \(Paths.schedulePath)")
+            }
+            DaemonManager.enableScheduleDaemon()
         } else {
-            try? ConfigStore().write("longevity_mode", value: nil)
+            try? config.write("longevity_mode", value: nil)
         }
 
         // Validate percentage
@@ -157,7 +174,6 @@ struct Maintain: ParsableCommand {
         }
 
         // Save settings before starting daemon (daemon reads config on recover)
-        let config = ConfigStore()
         if let sub, Int(sub) != nil {
             try? config.write("maintain_percentage", value: "\(setting) \(sub)")
         } else {

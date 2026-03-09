@@ -145,8 +145,6 @@ struct Maintain: ParsableCommand {
             if config.calibrateSchedule == nil {
                 log("Setting up monthly balance (recommended for longevity mode)")
                 try? config.write("calibrate_schedule", value: "Schedule calibration on day 1 at 09:00")
-                let intervals: [[String: Any]] = [["Day": 1, "Hour": 9, "Minute": 0]]
-                DaemonManager.createScheduleDaemon(calendarIntervals: intervals)
                 var components = DateComponents()
                 components.day = 1
                 components.hour = 9
@@ -156,6 +154,13 @@ struct Maintain: ParsableCommand {
                 if let next {
                     try? config.write("calibrate_next", value: String(Int(next.timeIntervalSince1970)))
                 }
+            }
+
+            // Always recreate plist -- recovers from missing/corrupt files
+            let intervals: [[String: Any]] = [["Day": 1, "Hour": 9, "Minute": 0]]
+            DaemonManager.createScheduleDaemon(calendarIntervals: intervals)
+            if !FileManager.default.fileExists(atPath: Paths.schedulePath) {
+                log("Warning: failed to create schedule plist at \(Paths.schedulePath)")
             }
             DaemonManager.enableScheduleDaemon()
         } else {

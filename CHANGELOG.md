@@ -99,7 +99,7 @@ Complete rewrite from bash to Swift. Apple Silicon only.
 
 ## v3.0.0
 
-Safety watchdog fix and CLI cleanup.
+Safety watchdog fix and CLI cleanup. **Breaking**: six commands removed (see below). Scripts referencing `aj schedule`, `aj ssd`, `aj dailylog`, `aj calibratelog`, `aj ssdlog`, or `aj reinstall` will fail with an unknown-command error.
 
 - Safety watchdog stale PID detection now uses system uptime (monotonic clock) instead of wall clock time, preventing false triggers after sleep
 - When a hung daemon is detected, the watchdog kills it for launchd restart instead of re-enabling charging (which fought the daemon's own control loop)

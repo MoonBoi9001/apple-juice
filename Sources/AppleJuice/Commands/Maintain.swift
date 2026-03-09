@@ -147,7 +147,13 @@ struct Maintain: ParsableCommand {
                 try? config.write("calibrate_schedule", value: "Schedule calibration on day 1 at 09:00")
                 let intervals: [[String: Any]] = [["Day": 1, "Hour": 9, "Minute": 0]]
                 DaemonManager.createScheduleDaemon(calendarIntervals: intervals)
-                if let next = Calendar.current.date(byAdding: .month, value: 1, to: Date()) {
+                var components = DateComponents()
+                components.day = 1
+                components.hour = 9
+                components.minute = 0
+                let next = Calendar.current.nextDate(after: Date(), matching: components, matchingPolicy: .nextTime)
+                    ?? Calendar.current.date(byAdding: .month, value: 1, to: Date())
+                if let next {
                     try? config.write("calibrate_next", value: String(Int(next.timeIntervalSince1970)))
                 }
             }

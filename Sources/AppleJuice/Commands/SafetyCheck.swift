@@ -16,6 +16,15 @@ struct SafetyCheck: ParsableCommand {
         recoverOrphanedChargeState()
 
         if ProcessHelper.maintainIsRunning() {
+            // If the daemon wrote "sleeping" to the PID file, it entered sleep
+            // gracefully via willSleep. During Power Nap the daemon process is
+            // app-napped and can't update the PID file, but it's healthy and
+            // will resume on full wake. Don't kill it.
+            let pidStatus = ProcessHelper.readPidFileStatus(Paths.pidFile)
+            if pidStatus == "sleeping" {
+                return
+            }
+
             // Daemon process is alive. Check for a hung loop by comparing PID
             // file staleness against system uptime (not wall clock). System
             // uptime doesn't advance during sleep, so the PID file won't

@@ -121,6 +121,11 @@ final class MaintainDaemon {
                     if self.caps.hasCHWA {
                         self.smcClient.write(.CHWA, value: SMCWriteValue.CHWA_enable)
                     }
+                    // Mark PID file as sleeping so the safety watchdog doesn't
+                    // kill us during Power Nap (daemon is app-napped, can't
+                    // update the PID file, but the process is healthy).
+                    let sleepContent = "\(getpid()) sleeping"
+                    try? sleepContent.write(toFile: Paths.pidFile, atomically: true, encoding: .utf8)
                 case .didWake:
                     WakeScheduler.cancelWake()
                     if self.caps.hasCHWA {

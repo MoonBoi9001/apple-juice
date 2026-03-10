@@ -108,3 +108,8 @@ Safety watchdog fix and CLI cleanup. **Breaking**: six commands removed (see bel
 - Hidden commands: `charge`, `discharge`, `visudo` (still functional, used internally)
 - Longevity mode schedule setup no longer depends on the `schedule` command
 - Added CodeRabbit configuration for automated PR reviews
+
+## v3.0.1
+
+- Daemon writes "sleeping" to PID file on willSleep so the safety watchdog skips the staleness check during Power Nap (the daemon is app-napped and can't update the PID file, but the process is healthy)
+- Schedule plist is now recreated on every longevity activation, recovering from missing or corrupt files

@@ -31,6 +31,11 @@ final class MaintainDaemon {
     // All mutable state below is accessed from multiple threads (main loop,
     // sleep/wake callback, signal handler) and MUST be read/written under smcQueue.
     private var status: Status = .active
+    /// True between willSleep and didWake. During DarkWake (Power Nap,
+    /// scheduled wakes) the main loop gets CPU time but no IOKit wake
+    /// notification fires, so this flag stays true and writePidFile()
+    /// writes "sleeping" instead of the actual status.
+    private var isSleeping = false
     private var upperLimit: Int
     private var lowerLimit: Int
     private var consecutiveFailures = 0
@@ -121,12 +126,9 @@ final class MaintainDaemon {
                     if self.caps.hasCHWA {
                         self.smcClient.write(.CHWA, value: SMCWriteValue.CHWA_enable)
                     }
-                    // Mark PID file as sleeping so the safety watchdog doesn't
-                    // kill us during Power Nap (daemon is app-napped, can't
-                    // update the PID file, but the process is healthy).
-                    let sleepContent = "\(getpid()) sleeping"
-                    try? sleepContent.write(toFile: Paths.pidFile, atomically: true, encoding: .utf8)
+                    self.isSleeping = true
                 case .didWake:
+                    self.isSleeping = false
                     WakeScheduler.cancelWake()
                     if self.caps.hasCHWA {
                         self.smcClient.write(.CHWA, value: SMCWriteValue.CHWA_disable)
@@ -277,8 +279,9 @@ final class MaintainDaemon {
     private var pidFileFailureLogged = false
 
     private func writePidFile() {
-        let currentStatus: Status = smcQueue.sync { status }
-        let content = "\(getpid()) \(currentStatus.rawValue)"
+        let (currentStatus, sleeping): (Status, Bool) = smcQueue.sync { (status, isSleeping) }
+        let statusStr = sleeping ? "sleeping" : currentStatus.rawValue
+        let content = "\(getpid()) \(statusStr)"
         do {
             try content.write(toFile: Paths.pidFile, atomically: true, encoding: .utf8)
             pidFileFailureLogged = false

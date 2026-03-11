@@ -113,3 +113,7 @@ Safety watchdog fix and CLI cleanup. **Breaking**: six commands removed (see bel
 
 - Daemon writes "sleeping" to PID file on willSleep so the safety watchdog skips the staleness check during Power Nap (the daemon is app-napped and can't update the PID file, but the process is healthy)
 - Schedule plist is now recreated on every longevity activation, recovering from missing or corrupt files
+
+## v3.0.2
+
+- Sleep state tracked as an in-memory flag (`isSleeping`) instead of a one-shot PID file write, so the "sleeping" marker persists through DarkWake cycles (scheduled wakes, Power Nap) where the main loop resumes but no IOKit wake notification fires

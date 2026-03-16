@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 
-let appVersion = "3.0.2"
+let appVersion = "3.0.3"
 
 @main
 struct AppleJuice: ParsableCommand {
@@ -110,6 +110,7 @@ enum Paths {
         .appendingPathComponent("Library/LaunchAgents/apple-juice_safety.plist")
 
     static let chargeStateFile = (configFolder as NSString).appendingPathComponent("charge.state")
+    static let sleepStateFile = (configFolder as NSString).appendingPathComponent("sleep.state")
 
     static let visudoFolder = "/private/etc/sudoers.d"
     static let visudoFile = "/private/etc/sudoers.d/apple-juice"

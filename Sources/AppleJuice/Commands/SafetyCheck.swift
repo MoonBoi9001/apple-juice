@@ -16,12 +16,12 @@ struct SafetyCheck: ParsableCommand {
         recoverOrphanedChargeState()
 
         if ProcessHelper.maintainIsRunning() {
-            // If the daemon wrote "sleeping" to the PID file, it entered sleep
-            // gracefully via willSleep. During Power Nap the daemon process is
-            // app-napped and can't update the PID file, but it's healthy and
-            // will resume on full wake. Don't kill it.
-            let pidStatus = ProcessHelper.readPidFileStatus(Paths.pidFile)
-            if pidStatus == "sleeping" {
+            // The sleep.state file is created by the daemon in willSleep and
+            // deleted in didWake. It persists on disk across daemon restarts,
+            // so even if the watchdog kills and KeepAlive restarts the daemon
+            // during DarkWake (Power Nap, scheduled wakes), the file remains
+            // and prevents further false kills.
+            if FileManager.default.fileExists(atPath: Paths.sleepStateFile) {
                 return
             }
 
@@ -33,19 +33,12 @@ struct SafetyCheck: ParsableCommand {
                let modified = attrs[.modificationDate] as? Date {
                 let wallElapsed = Date().timeIntervalSince(modified)
                 let uptime = ProcessInfo.processInfo.systemUptime
-                // How long the system has been awake since the PID file was
-                // last written. Approximate: if the file was modified before
-                // the last sleep, awakeElapsed clamps to uptime (i.e. the
-                // full duration since the most recent boot/wake).
                 let awakeElapsed = min(wallElapsed, uptime)
                 if awakeElapsed > 120 {
                     log("Safety watchdog: daemon PID file is stale (>2 min awake time). Killing for restart.")
                     if let pid = ProcessHelper.readPid(Paths.pidFile) {
                         kill(pid, SIGKILL)
                     }
-                    // KeepAlive (SuccessfulExit: false) will restart the daemon.
-                    // Don't re-enable charging here -- the restarted daemon will
-                    // set the correct state.
                 }
             }
             return

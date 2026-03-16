@@ -117,3 +117,7 @@ Safety watchdog fix and CLI cleanup. **Breaking**: six commands removed (see bel
 ## v3.0.2
 
 - Sleep state tracked as an in-memory flag (`isSleeping`) instead of a one-shot PID file write, so the "sleeping" marker persists through DarkWake cycles (scheduled wakes, Power Nap) where the main loop resumes but no IOKit wake notification fires
+
+## v3.0.3
+
+- Sleep state persisted to disk (`sleep.state` file) instead of only in-memory, so it survives daemon restarts during DarkWake -- after the watchdog killed and KeepAlive restarted the daemon during Power Nap, the new process had no `willSleep` context and wrote "active" to the PID file, restarting the kill cycle

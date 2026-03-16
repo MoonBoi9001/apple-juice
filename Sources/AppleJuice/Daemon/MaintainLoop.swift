@@ -127,8 +127,12 @@ final class MaintainDaemon {
                         self.smcClient.write(.CHWA, value: SMCWriteValue.CHWA_enable)
                     }
                     self.isSleeping = true
+                    // Persist sleep state to disk so it survives daemon
+                    // restarts during DarkWake (Power Nap, scheduled wakes).
+                    try? "sleeping".write(toFile: Paths.sleepStateFile, atomically: true, encoding: .utf8)
                 case .didWake:
                     self.isSleeping = false
+                    try? FileManager.default.removeItem(atPath: Paths.sleepStateFile)
                     WakeScheduler.cancelWake()
                     if self.caps.hasCHWA {
                         self.smcClient.write(.CHWA, value: SMCWriteValue.CHWA_disable)
@@ -317,6 +321,7 @@ final class MaintainDaemon {
         WakeScheduler.cancelWake()
         controller.enableCharging()
         try? FileManager.default.removeItem(atPath: Paths.pidFile)
+        try? FileManager.default.removeItem(atPath: Paths.sleepStateFile)
         // Exit 0 so KeepAlive (SuccessfulExit: false) does NOT restart.
         // User-initiated stops (SIGTERM/SIGINT) should stay stopped.
         // Crashes (SIGKILL, segfault) produce non-zero exits, triggering restart.
@@ -328,6 +333,7 @@ final class MaintainDaemon {
         sleepWakeListener?.stop()
         WakeScheduler.cancelWake()
         controller.enableCharging()
+        try? FileManager.default.removeItem(atPath: Paths.sleepStateFile)
         try? FileManager.default.removeItem(atPath: Paths.pidFile)
         exit(1)
     }

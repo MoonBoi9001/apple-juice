@@ -111,6 +111,7 @@ struct Maintain: ParsableCommand {
         // Handle stop
         if target == "stop" {
             try? FileManager.default.removeItem(atPath: Paths.pidFile)
+            try? FileManager.default.removeItem(atPath: Paths.sleepStateFile)
             DaemonManager.stopDaemon()
             DaemonManager.disableDaemon()
             DaemonManager.disableScheduleDaemon()

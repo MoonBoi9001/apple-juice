@@ -81,10 +81,10 @@ enum DaemonManager {
         Thread.sleep(forTimeInterval: 0.5)
         launchctl("launchctl enable gui/\(uid)/com.apple-juice.app")
         if FileManager.default.fileExists(atPath: Paths.daemonPath) {
-            let result = launchctl("launchctl bootstrap gui/\(uid) '\(Paths.daemonPath)'")
+            let result = launchctl("launchctl bootstrap gui/\(uid) '\(Paths.daemonPath)'", silent: true)
             if !result.succeeded {
                 Thread.sleep(forTimeInterval: 1)
-                launchctl("launchctl bootstrap gui/\(uid) '\(Paths.daemonPath)'")
+                launchctl("launchctl bootstrap gui/\(uid) '\(Paths.daemonPath)'", silent: true)
             }
         }
         launchctl("launchctl kickstart gui/\(uid)/com.apple-juice.app")
@@ -166,10 +166,10 @@ enum DaemonManager {
         launchctl("launchctl enable gui/\(uid)/com.apple-juice.safety")
         launchctl("launchctl bootout gui/\(uid)/com.apple-juice.safety", silent: true)
         Thread.sleep(forTimeInterval: 0.5)
-        let result = launchctl("launchctl bootstrap gui/\(uid) '\(path)'")
+        let result = launchctl("launchctl bootstrap gui/\(uid) '\(path)'", silent: true)
         if !result.succeeded {
             Thread.sleep(forTimeInterval: 1)
-            launchctl("launchctl bootstrap gui/\(uid) '\(path)'")
+            launchctl("launchctl bootstrap gui/\(uid) '\(path)'", silent: true)
         }
         // No kickstart -- let StartCalendarInterval handle timing.
         // Kickstarting here races with daemon startup since createSafetyDaemon()
@@ -235,7 +235,7 @@ enum DaemonManager {
         launchctl("launchctl enable gui/\(uid)/com.apple-juice_schedule.app")
         // Bootstrap if not loaded
         if FileManager.default.fileExists(atPath: Paths.schedulePath) {
-            launchctl("launchctl bootstrap gui/\(uid) '\(Paths.schedulePath)'")
+            launchctl("launchctl bootstrap gui/\(uid) '\(Paths.schedulePath)'", silent: true)
         }
     }
 

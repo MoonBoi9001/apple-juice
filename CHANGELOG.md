@@ -129,3 +129,7 @@ Safety watchdog fix and CLI cleanup. **Breaking**: six commands removed (see bel
 - Daemon initialises `isSleeping` from on-disk `sleep.state` at startup so DarkWake restarts preserve the sleeping marker instead of immediately deleting it
 - `sleep.state` deletion gated on successful PID file write and moved from `didWake` to `writePidFile()` to eliminate a race at full wake
 - Warning logs added for failed writes to sleep state, daily log, and balance subprocess launch
+
+## v3.0.5
+
+- Suppressed expected launchctl bootstrap errors from user-facing output (bootstrap fails when the service is already loaded, which is normal during KeepAlive restarts and daemon recovery)

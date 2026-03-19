@@ -1,7 +1,7 @@
 import ArgumentParser
 import Foundation
 
-let appVersion = "3.0.4"
+let appVersion = "3.0.5"
 
 @main
 struct AppleJuice: ParsableCommand {

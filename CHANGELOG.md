@@ -121,3 +121,11 @@ Safety watchdog fix and CLI cleanup. **Breaking**: six commands removed (see bel
 ## v3.0.3
 
 - Sleep state persisted to disk (`sleep.state` file) instead of only in-memory, so it survives daemon restarts during DarkWake -- after the watchdog killed and KeepAlive restarted the daemon during Power Nap, the new process had no `willSleep` context and wrote "active" to the PID file, restarting the kill cycle
+
+## v3.0.4
+
+- SMC read failure (0%) now treated as unknown at both startup and in the main loop, keeping current charging state instead of enabling charging based on a bogus reading
+- `fatalExit()` checks `sleep.state` on disk before enabling charging, so restarted daemons during DarkWake don't leak charging on each crash/restart cycle
+- Daemon initialises `isSleeping` from on-disk `sleep.state` at startup so DarkWake restarts preserve the sleeping marker instead of immediately deleting it
+- `sleep.state` deletion gated on successful PID file write and moved from `didWake` to `writePidFile()` to eliminate a race at full wake
+- Warning logs added for failed writes to sleep state, daily log, and balance subprocess launch

@@ -79,13 +79,27 @@ final class MaintainDaemon {
         // Apply charging control immediately on startup rather than waiting
         // for the first loop iteration. This avoids a brief window where
         // charging is enabled despite the battery being above the target.
+        // If the read returns 0, the SMC is unresponsive (common during
+        // DarkWake) -- disable charging as a safe default rather than
+        // enabling it based on a bogus 0% reading.
         let startPct = getBatteryPercentage(using: smcClient)
-        if startPct >= upperLimit {
+        if startPct <= 0 || startPct >= upperLimit {
             controller.disableCharging()
-            log("Starting maintenance, maintaining \(lowerLimit)-\(upperLimit)% (at \(startPct)%, charging disabled)")
+            if startPct <= 0 {
+                log("Starting maintenance, maintaining \(lowerLimit)-\(upperLimit)% (SMC read failed, charging disabled as precaution)")
+            } else {
+                log("Starting maintenance, maintaining \(lowerLimit)-\(upperLimit)% (at \(startPct)%, charging disabled)")
+            }
         } else {
             controller.enableCharging()
             log("Starting maintenance, maintaining \(lowerLimit)-\(upperLimit)% (at \(startPct)%, charging)")
+        }
+
+        // If sleep.state exists on disk, we're being restarted during
+        // DarkWake. Adopt the sleeping state so writePidFile() writes
+        // "sleeping" and preserves the file for the watchdog.
+        if FileManager.default.fileExists(atPath: Paths.sleepStateFile) {
+            isSleeping = true
         }
 
         // Write PID file
@@ -129,10 +143,18 @@ final class MaintainDaemon {
                     self.isSleeping = true
                     // Persist sleep state to disk so it survives daemon
                     // restarts during DarkWake (Power Nap, scheduled wakes).
-                    try? "sleeping".write(toFile: Paths.sleepStateFile, atomically: true, encoding: .utf8)
+                    do {
+                        try "sleeping".write(toFile: Paths.sleepStateFile, atomically: true, encoding: .utf8)
+                    } catch {
+                        log("Warning: failed to write sleep state file: \(error.localizedDescription)")
+                    }
                 case .didWake:
                     self.isSleeping = false
-                    try? FileManager.default.removeItem(atPath: Paths.sleepStateFile)
+                    // sleep.state is deleted by writePidFile() after the PID
+                    // file is updated, not here. This avoids a race where
+                    // the watchdog fires at the same moment as didWake, sees
+                    // no sleep.state, and kills the daemon before the main
+                    // loop has updated the PID file.
                     WakeScheduler.cancelWake()
                     if self.caps.hasCHWA {
                         self.smcClient.write(.CHWA, value: SMCWriteValue.CHWA_disable)
@@ -172,6 +194,11 @@ final class MaintainDaemon {
 
                     // Core charging control
                     let pct = getBatteryPercentage(using: smcClient)
+
+                    // SMC read failure -- don't act on bogus 0%. The failure
+                    // tracking at the end of the loop handles retry/exit.
+                    guard pct > 0 else { return }
+
                     let chargingEnabled = getSMCChargingStatus(using: smcClient, caps: caps) == "enabled"
 
                     let action = ChargingDecision.evaluate(
@@ -286,9 +313,11 @@ final class MaintainDaemon {
         let (currentStatus, sleeping): (Status, Bool) = smcQueue.sync { (status, isSleeping) }
         let statusStr = sleeping ? "sleeping" : currentStatus.rawValue
         let content = "\(getpid()) \(statusStr)"
+        var pidWriteSucceeded = false
         do {
             try content.write(toFile: Paths.pidFile, atomically: true, encoding: .utf8)
             pidFileFailureLogged = false
+            pidWriteSucceeded = true
         } catch {
             if !pidFileFailureLogged {
                 // Log to stderr (captured by launchd) since file logging may also be broken
@@ -296,6 +325,12 @@ final class MaintainDaemon {
                 log("Error: failed to write PID file: \(error.localizedDescription)")
                 pidFileFailureLogged = true
             }
+        }
+        // Clean up sleep.state only after the PID file is confirmed fresh
+        // and we're awake (isSleeping cleared by didWake). During DarkWake
+        // isSleeping stays true so the file persists.
+        if pidWriteSucceeded && !sleeping {
+            try? FileManager.default.removeItem(atPath: Paths.sleepStateFile)
         }
     }
 
@@ -328,12 +363,16 @@ final class MaintainDaemon {
         exit(0)
     }
 
-    /// Fatal exit: re-enable charging, clean up, exit 1 for launchd restart.
+    /// Fatal exit: clean up and exit 1 for launchd restart.
+    /// During DarkWake, SMC writes are unreliable and the restarted daemon
+    /// will disable charging on startup, so skip enableCharging and preserve
+    /// sleep.state to prevent the watchdog from killing the replacement.
     private func fatalExit() {
         sleepWakeListener?.stop()
         WakeScheduler.cancelWake()
-        controller.enableCharging()
-        try? FileManager.default.removeItem(atPath: Paths.sleepStateFile)
+        if !FileManager.default.fileExists(atPath: Paths.sleepStateFile) {
+            controller.enableCharging()
+        }
         try? FileManager.default.removeItem(atPath: Paths.pidFile)
         exit(1)
     }
@@ -351,7 +390,11 @@ final class MaintainDaemon {
                 pad("Health", 9),
                 pad("Cycle", 9),
             ].joined(separator: ", ")
-            try? (header + "\n").write(toFile: Paths.dailyLogFile, atomically: true, encoding: .utf8)
+            do {
+                try (header + "\n").write(toFile: Paths.dailyLogFile, atomically: true, encoding: .utf8)
+            } catch {
+                log("Warning: failed to create daily log: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -405,7 +448,11 @@ final class MaintainDaemon {
         if lines.count > 366 {
             let header = lines.first ?? ""
             let kept = [header] + lines.suffix(365)
-            try? kept.joined(separator: "\n").write(toFile: Paths.dailyLogFile, atomically: true, encoding: .utf8)
+            do {
+                try kept.joined(separator: "\n").write(toFile: Paths.dailyLogFile, atomically: true, encoding: .utf8)
+            } catch {
+                log("Warning: failed to rotate daily log: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -433,7 +480,11 @@ final class MaintainDaemon {
             process.arguments = ["balance"]
             process.standardOutput = FileHandle.nullDevice
             process.standardError = FileHandle.nullDevice
-            try? process.run()
+            do {
+                try process.run()
+            } catch {
+                log("Warning: failed to launch balance: \(error.localizedDescription)")
+            }
         }
     }
 

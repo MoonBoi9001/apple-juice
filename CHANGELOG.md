@@ -133,3 +133,7 @@ Safety watchdog fix and CLI cleanup. **Breaking**: six commands removed (see bel
 ## v3.0.5
 
 - Suppressed expected launchctl bootstrap errors from user-facing output (bootstrap fails when the service is already loaded, which is normal during KeepAlive restarts and daemon recovery)
+
+## v3.0.6
+
+- Main loop no longer re-enables charging when `isSleeping` is true -- the willSleep handler intentionally disabled charging, but the main loop's next iteration saw "battery below 60%" and overrode it, causing uncontrolled charging during sleep

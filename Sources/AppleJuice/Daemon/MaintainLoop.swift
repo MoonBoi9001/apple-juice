@@ -218,6 +218,11 @@ final class MaintainDaemon {
                         }
                         sleepDuration = 60
                     case .enableCharging:
+                        // During sleep, don't re-enable charging. The willSleep
+                        // handler already decided the correct state. Re-enabling
+                        // here overrides willSleep's "charging disabled" decision
+                        // and causes uncontrolled charging during DarkWake.
+                        if self.isSleeping { return }
                         log("Charge below \(lowerLimit)")
                         controller.enableCharging()
                         let stillDisabled = getSMCChargingStatus(using: smcClient, caps: caps) == "disabled"

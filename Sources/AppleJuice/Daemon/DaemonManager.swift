@@ -161,8 +161,16 @@ enum DaemonManager {
             try? plist.write(toFile: path, atomically: true, encoding: .utf8)
         }
 
-        // Always run launchctl calls -- the plist being on disk doesn't mean
-        // the service is loaded in launchd.
+        // Reload only when the plist changed or the service is not loaded in
+        // launchd. Re-bootstrapping on every maintain run fires RunAtLoad, and
+        // that safety check races the maintain daemon's own startup.
+        let loaded = ProcessRunner.shell(
+            "launchctl print gui/\(uid)/com.apple-juice.safety", timeout: 10
+        ).succeeded
+        if !needsWrite && loaded {
+            return
+        }
+
         launchctl("launchctl enable gui/\(uid)/com.apple-juice.safety")
         launchctl("launchctl bootout gui/\(uid)/com.apple-juice.safety", silent: true)
         Thread.sleep(forTimeInterval: 0.5)

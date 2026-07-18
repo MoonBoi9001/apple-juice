@@ -111,6 +111,10 @@ enum Migration {
 
         guard !ProcessHelper.maintainIsRunning() else { return }
 
+        // A daemon mid-startup has not written its PID file yet; restarting
+        // it here would kill it. Leave it to finish coming up.
+        guard !ProcessHelper.maintainDaemonProcessExists() else { return }
+
         let smcClient = SMCBinaryClient()
         let caps = SMCCapabilities.probe(using: smcClient)
         let chargingStatus = getSMCChargingStatus(using: smcClient, caps: caps)

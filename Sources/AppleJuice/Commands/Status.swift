@@ -224,6 +224,15 @@ enum ProcessHelper {
         isProcessRunning(pidFile: Paths.calibratePidFile)
     }
 
+    /// Check the process table for a live maintain daemon, regardless of PID
+    /// file state. A freshly bootstrapped daemon does seconds of SMC startup
+    /// work before writing its PID file; PID-file checks alone call it dead.
+    static func maintainDaemonProcessExists() -> Bool {
+        let result = ProcessRunner.run(
+            "/usr/bin/pgrep", arguments: ["-f", "apple-juice maintain-daemon"])
+        return !result.stdout.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     /// Read the status field from a PID file (format: "PID STATUS").
     static func readPidFileStatus(_ path: String) -> String? {
         guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else { return nil }

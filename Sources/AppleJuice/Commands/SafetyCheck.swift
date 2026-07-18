@@ -16,19 +16,16 @@ struct SafetyCheck: ParsableCommand {
         recoverOrphanedChargeState()
 
         if ProcessHelper.maintainIsRunning() {
-            // The sleep.state file is created by the daemon in willSleep and
-            // deleted in didWake. It persists on disk across daemon restarts,
-            // so even if the watchdog kills and KeepAlive restarts the daemon
-            // during DarkWake (Power Nap, scheduled wakes), the file remains
-            // and prevents further false kills.
+            // sleep.state is written in willSleep, deleted in didWake, and
+            // survives daemon restarts, so DarkWake watchdog kill/restart
+            // cycles still see it and stop killing the daemon again.
             if FileManager.default.fileExists(atPath: Paths.sleepStateFile) {
                 return
             }
 
-            // Daemon process is alive. Check for a hung loop by comparing PID
-            // file staleness against system uptime (not wall clock). System
-            // uptime doesn't advance during sleep, so the PID file won't
-            // appear stale just because the Mac was asleep.
+            // Daemon is alive. Detect a hung loop via PID file staleness
+            // measured against system uptime, which doesn't advance during
+            // sleep, so a sleeping Mac doesn't make the file look stale.
             if let attrs = try? FileManager.default.attributesOfItem(atPath: Paths.pidFile),
                let modified = attrs[.modificationDate] as? Date {
                 let wallElapsed = Date().timeIntervalSince(modified)
@@ -41,6 +38,14 @@ struct SafetyCheck: ParsableCommand {
                     }
                 }
             }
+            return
+        }
+
+        // The PID file says no daemon, but one may be mid-startup and simply
+        // not have written its PID file yet. Restarting here would bootout
+        // the healthy daemon.
+        if ProcessHelper.maintainDaemonProcessExists() {
+            log("Safety watchdog: daemon process is starting up, skipping check.")
             return
         }
 

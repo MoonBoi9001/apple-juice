@@ -31,10 +31,9 @@ final class MaintainDaemon {
     // All mutable state below is accessed from multiple threads (main loop,
     // sleep/wake callback, signal handler) and MUST be read/written under smcQueue.
     private var status: Status = .active
-    /// True between willSleep and didWake. During DarkWake (Power Nap,
-    /// scheduled wakes) the main loop gets CPU time but no IOKit wake
-    /// notification fires, so this flag stays true and writePidFile()
-    /// writes "sleeping" instead of the actual status.
+    /// True between willSleep and didWake. During DarkWake the main loop
+    /// gets CPU time but no IOKit wake notification fires, so this stays
+    /// true and writePidFile() writes "sleeping" instead of the status.
     private var isSleeping = false
     private var upperLimit: Int
     private var lowerLimit: Int
@@ -71,17 +70,25 @@ final class MaintainDaemon {
     }
 
     func run() {
+        // Adopt DarkWake sleeping state before the first PID write, which
+        // deletes sleep.state whenever the daemon is not sleeping.
+        if FileManager.default.fileExists(atPath: Paths.sleepStateFile) {
+            isSleeping = true
+        }
+
+        // Publish the PID before any SMC work: safety checks read the PID
+        // file, and the SMC startup below takes seconds, leaving a window
+        // where a concurrent check sees a dead daemon and restarts us.
+        writePidFile()
+
         // Reset CHWA
         if caps.hasCHWA {
             smcClient.write(.CHWA, value: SMCWriteValue.CHWA_disable)
         }
 
-        // Apply charging control immediately on startup rather than waiting
-        // for the first loop iteration. This avoids a brief window where
-        // charging is enabled despite the battery being above the target.
-        // If the read returns 0, the SMC is unresponsive (common during
-        // DarkWake) -- disable charging as a safe default rather than
-        // enabling it based on a bogus 0% reading.
+        // Apply charging control now, not on the first loop iteration, to
+        // avoid a window of charging above target. A 0 reading means the SMC
+        // is unresponsive (DarkWake): disable charging as the safe default.
         let startPct = getBatteryPercentage(using: smcClient)
         if startPct <= 0 || startPct >= upperLimit {
             controller.disableCharging()
@@ -150,11 +157,9 @@ final class MaintainDaemon {
                     }
                 case .didWake:
                     self.isSleeping = false
-                    // sleep.state is deleted by writePidFile() after the PID
-                    // file is updated, not here. This avoids a race where
-                    // the watchdog fires at the same moment as didWake, sees
-                    // no sleep.state, and kills the daemon before the main
-                    // loop has updated the PID file.
+                    // sleep.state deletion happens in writePidFile() after the
+                    // PID update; deleting it here would let a didWake-moment
+                    // watchdog see no sleep.state and kill the daemon.
                     WakeScheduler.cancelWake()
                     if self.caps.hasCHWA {
                         self.smcClient.write(.CHWA, value: SMCWriteValue.CHWA_disable)
@@ -218,10 +223,9 @@ final class MaintainDaemon {
                         }
                         sleepDuration = 60
                     case .enableCharging:
-                        // During sleep, don't re-enable charging. The willSleep
-                        // handler already decided the correct state. Re-enabling
-                        // here overrides willSleep's "charging disabled" decision
-                        // and causes uncontrolled charging during DarkWake.
+                        // Don't re-enable charging during sleep: willSleep
+                        // already chose the state, and overriding it causes
+                        // uncontrolled charging during DarkWake.
                         if self.isSleeping { return }
                         log("Charge below \(lowerLimit)")
                         controller.enableCharging()
@@ -368,10 +372,9 @@ final class MaintainDaemon {
         exit(0)
     }
 
-    /// Fatal exit: clean up and exit 1 for launchd restart.
-    /// During DarkWake, SMC writes are unreliable and the restarted daemon
-    /// will disable charging on startup, so skip enableCharging and preserve
-    /// sleep.state to prevent the watchdog from killing the replacement.
+    /// Fatal exit: clean up and exit 1 for launchd restart. During DarkWake
+    /// SMC writes are unreliable, so skip enableCharging and keep sleep.state
+    /// so the watchdog doesn't kill the replacement daemon.
     private func fatalExit() {
         sleepWakeListener?.stop()
         WakeScheduler.cancelWake()

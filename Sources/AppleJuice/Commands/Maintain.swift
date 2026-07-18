@@ -24,7 +24,7 @@ struct Maintain: ParsableCommand {
     var forceDischarge = false
 
     func run() throws {
-        let binaryPath = CommandLine.arguments[0]
+        let binaryPath = Paths.selfBinary
 
         // Determine if called by another apple-juice process (suppresses notifications)
         let ppid = getppid()
@@ -299,7 +299,7 @@ struct MaintainDaemonCommand: ParsableCommand {
                 throw ExitCode.failure
             }
             log("Triggering discharge to \(upper) before enabling charging limiter")
-            let binaryPath = CommandLine.arguments[0]
+            let binaryPath = Paths.selfBinary
             ProcessRunner.run(binaryPath, arguments: ["discharge", String(upper)])
             log("Discharge pre maintenance complete, continuing to maintenance loop")
         }

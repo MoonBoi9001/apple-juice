@@ -479,7 +479,7 @@ final class MaintainDaemon {
         if imbalance > 200 {
             let voltages = battery.cellVoltages?.map(String.init).joined(separator: ", ") ?? "?"
             log("Cell imbalance detected: \(imbalance)mV (cells: \(voltages)mV). Triggering balance for BMS cell balancing.")
-            let binaryPath = CommandLine.arguments[0]
+            let binaryPath = Paths.selfBinary
             let process = Process()
             process.executableURL = URL(fileURLWithPath: binaryPath)
             process.arguments = ["balance"]

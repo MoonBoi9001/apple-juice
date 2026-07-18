@@ -97,7 +97,7 @@ func recoverOrphanedChargeState() {
 
         // Recover maintain if it was active before the orphaned operation
         if parts.count >= 3 && parts[2] == "active" {
-            let binaryPath = CommandLine.arguments[0]
+            let binaryPath = Paths.selfBinary
             ProcessRunner.run(binaryPath, arguments: ["maintain", "recover"])
         }
     }

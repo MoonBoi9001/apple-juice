@@ -29,7 +29,7 @@ struct Charge: ParsableCommand {
 
         // Save and suspend maintain
         let originalMaintainStatus = ProcessHelper.readPidFileStatus(Paths.pidFile)
-        let binaryPath = CommandLine.arguments[0]
+        let binaryPath = Paths.selfBinary
         ProcessRunner.run(binaryPath, arguments: ["maintain", "suspend"])
 
         // Write state file for orphan detection
@@ -155,7 +155,7 @@ struct Discharge: ParsableCommand {
 
         // Save and suspend maintain
         let originalMaintainStatus = ProcessHelper.readPidFileStatus(Paths.pidFile)
-        let binaryPath = CommandLine.arguments[0]
+        let binaryPath = Paths.selfBinary
         ProcessRunner.run(binaryPath, arguments: ["maintain", "suspend"])
 
         // Write state file for orphan detection

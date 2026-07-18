@@ -8,7 +8,7 @@ struct Balance: ParsableCommand {
     )
 
     func run() throws {
-        let binaryPath = CommandLine.arguments[0]
+        let binaryPath = Paths.selfBinary
         try "\(getpid())".write(toFile: Paths.calibratePidFile, atomically: true, encoding: .utf8)
         defer { try? FileManager.default.removeItem(atPath: Paths.calibratePidFile) }
 

@@ -89,6 +89,20 @@ enum Paths {
         return "/usr/local/co.apple-juice"
     }()
 
+    /// Absolute path to this binary, for launching apple-juice subcommands.
+    /// argv[0] is a bare name when invoked via PATH, and Foundation's Process
+    /// does no PATH lookup, so launching a bare name silently fails.
+    static let selfBinary: String = resolveSelfBinary(from: CommandLine.arguments[0])
+
+    static func resolveSelfBinary(from arg0: String) -> String {
+        if arg0.contains("/") {
+            return URL(fileURLWithPath: arg0).standardizedFileURL.path
+        }
+        let result = ProcessRunner.run("/usr/bin/which", arguments: [arg0])
+        let resolved = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
+        return resolved.isEmpty ? arg0 : resolved
+    }
+
     static let configFolder = (NSHomeDirectory() as NSString).appendingPathComponent(".apple-juice")
     static let pidFile = (configFolder as NSString).appendingPathComponent("apple-juice.pid")
     static let logFile = (configFolder as NSString).appendingPathComponent("apple-juice.log")

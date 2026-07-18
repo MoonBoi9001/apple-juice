@@ -126,7 +126,7 @@ struct Status: ParsableCommand {
 
             if maintainStatus == "active" {
                 if longevityConfigured {
-                    modeDescription = "longevity, maintaining 60-65%"
+                    modeDescription = "longevity, maintaining \(LongevityPreset.range)"
                 } else if let mp = maintainPercentage {
                     let parts = mp.split(separator: " ")
                     if let upperStr = parts.first, let upper = Int(upperStr) {

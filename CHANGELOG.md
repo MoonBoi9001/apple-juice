@@ -137,3 +137,10 @@ Safety watchdog fix and CLI cleanup. **Breaking**: six commands removed (see bel
 ## v3.0.6
 
 - Main loop no longer re-enables charging when `isSleeping` is true -- the willSleep handler intentionally disabled charging, but the main loop's next iteration saw "battery below 60%" and overrode it, causing uncontrolled charging during sleep
+
+## v3.1.0
+
+- Longevity mode now maintains 70-75% instead of 60-65% -- the higher range leaves enough charge for a day of unplugged work while still avoiding the high-voltage stress near full charge
+- `maintain` validates its argument before stopping the running daemon -- previously a typo like `maintain 75-70` killed the daemon and left charging disabled until a safety check noticed
+- `maintain 75-70` is now accepted as shorthand for `maintain 75 70` (maintain level plus recharge threshold), the error message explains the recharge threshold forms, and an invalid threshold is rejected instead of silently ignored
+- `maintain <level>` and `maintain stop` show the battery status again -- the status output was captured by the subprocess runner and discarded, so both commands succeeded silently

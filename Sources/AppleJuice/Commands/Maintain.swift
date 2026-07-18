@@ -1,13 +1,20 @@
 import ArgumentParser
 import Foundation
 
+/// Bounds used by longevity mode, shared with the status display.
+enum LongevityPreset {
+    static let upper = 75
+    static let lower = 70
+    static var range: String { "\(lower)-\(upper)%" }
+}
+
 struct Maintain: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "maintain",
         abstract: "Maintain battery at a target percentage"
     )
 
-    @Argument(help: "Target percentage (10-100), or: stop, suspend, recover, longevity")
+    @Argument(help: "Target percentage (10-100), a range like 75-70, or: stop, suspend, recover, longevity")
     var target: String
 
     @Argument(help: "Lower bound percentage (recharge threshold)")
@@ -96,6 +103,34 @@ struct Maintain: ParsableCommand {
             return
         }
 
+        // Parse and validate the target before stopping the running daemon: an
+        // invalid argument must leave the current session untouched, not kill
+        // the daemon and leave charging disabled until a safety check notices.
+        var setting = target
+        var sub = lowerBound
+
+        if target != "stop" && target != "longevity" {
+            // Accept "75-70" as shorthand for "75 70"
+            if sub == nil, setting.contains("-") {
+                let parts = setting.split(separator: "-")
+                if parts.count == 2 {
+                    setting = String(parts[0])
+                    sub = String(parts[1])
+                }
+            }
+
+            guard let upper = Int(setting), upper >= 10, upper <= 100 else {
+                log("Error: \(target) is not a valid setting for maintain. Use a number between 10 and 100, optionally with a recharge threshold ('75 70' or '75-70'), 'longevity' for optimal lifespan, or 'stop'/'recover'.")
+                throw ExitCode.failure
+            }
+            if let sub {
+                guard let lower = Int(sub), lower >= 0, lower < upper else {
+                    log("Error: \(sub) is not a valid recharge threshold. Use a number below the maintain level \(upper).")
+                    throw ExitCode.failure
+                }
+            }
+        }
+
         // Kill old process
         if let pid {
             if kill(pid, 0) == 0 {
@@ -118,7 +153,8 @@ struct Maintain: ParsableCommand {
             let smcClient = SMCBinaryClient()
             let caps = SMCCapabilities.probe(using: smcClient)
             ChargingController(client: smcClient, caps: caps).enableCharging()
-            ProcessRunner.run(binaryPath, arguments: ["status"])
+            let status = ProcessRunner.run(binaryPath, arguments: ["status"])
+            print(status.stdout, terminator: "")
             return
         }
 
@@ -132,14 +168,11 @@ struct Maintain: ParsableCommand {
         }
 
         // Handle longevity preset
-        var setting = target
-        var sub = lowerBound
-
         let config = ConfigStore()
         if target == "longevity" {
-            log("Longevity mode: maintaining 60-65% (optimal for battery lifespan)")
-            setting = "65"
-            sub = "60"
+            log("Longevity mode: maintaining \(LongevityPreset.range) (optimal for battery lifespan)")
+            setting = String(LongevityPreset.upper)
+            sub = String(LongevityPreset.lower)
             try? config.write("longevity_mode", value: "enabled")
 
             // Auto-enable monthly balance
@@ -168,9 +201,9 @@ struct Maintain: ParsableCommand {
             try? config.write("longevity_mode", value: nil)
         }
 
-        // Validate percentage
-        guard let pct = Int(setting), pct >= 10, pct <= 100 else {
-            log("Error: \(setting) is not a valid setting for maintain. Please use a number between 10 and 100, 'longevity' for optimal lifespan, or 'stop'/'recover'.")
+        // Backstop only: setting was validated above or set by the longevity preset
+        guard let pct = Int(setting) else {
+            log("Error: \(setting) is not a valid setting for maintain")
             throw ExitCode.failure
         }
 
@@ -186,7 +219,8 @@ struct Maintain: ParsableCommand {
         DaemonManager.startDaemon()
 
         // Report status
-        ProcessRunner.run(binaryPath, arguments: ["status"])
+        let status = ProcessRunner.run(binaryPath, arguments: ["status"])
+        print(status.stdout, terminator: "")
 
         // Ask about discharge if battery is above target
         let smcClient = SMCBinaryClient()

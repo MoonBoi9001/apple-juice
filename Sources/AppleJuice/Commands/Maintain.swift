@@ -146,7 +146,8 @@ struct Maintain: ParsableCommand {
             let smcClient = SMCBinaryClient()
             let caps = SMCCapabilities.probe(using: smcClient)
             ChargingController(client: smcClient, caps: caps).enableCharging()
-            ProcessRunner.run(binaryPath, arguments: ["status"])
+            let status = ProcessRunner.run(binaryPath, arguments: ["status"])
+            print(status.stdout, terminator: "")
             return
         }
 
@@ -211,7 +212,8 @@ struct Maintain: ParsableCommand {
         DaemonManager.startDaemon()
 
         // Report status
-        ProcessRunner.run(binaryPath, arguments: ["status"])
+        let status = ProcessRunner.run(binaryPath, arguments: ["status"])
+        print(status.stdout, terminator: "")
 
         // Ask about discharge if battery is above target
         let smcClient = SMCBinaryClient()

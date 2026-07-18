@@ -1,6 +1,13 @@
 import ArgumentParser
 import Foundation
 
+/// Bounds used by longevity mode, shared with the status display.
+enum LongevityPreset {
+    static let upper = 75
+    static let lower = 70
+    static var range: String { "\(lower)-\(upper)%" }
+}
+
 struct Maintain: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "maintain",
@@ -163,9 +170,9 @@ struct Maintain: ParsableCommand {
         // Handle longevity preset
         let config = ConfigStore()
         if target == "longevity" {
-            log("Longevity mode: maintaining 60-65% (optimal for battery lifespan)")
-            setting = "65"
-            sub = "60"
+            log("Longevity mode: maintaining \(LongevityPreset.range) (optimal for battery lifespan)")
+            setting = String(LongevityPreset.upper)
+            sub = String(LongevityPreset.lower)
             try? config.write("longevity_mode", value: "enabled")
 
             // Auto-enable monthly balance

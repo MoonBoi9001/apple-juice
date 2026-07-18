@@ -57,7 +57,7 @@ Three commands. Set it and forget it. Configure [macOS settings](#-setup) for no
 
 | What it does | Why it matters |
 |:---|:---|
-| Maintains charge between **60-65%** | Sweet spot for lithium-ion longevity |
+| Maintains charge between **70-75%** | Balances lithium-ion longevity with a useful day's charge |
 | Runs on wall power when plugged in | Battery sits idle at low voltage, minimal degradation |
 | **Cell imbalance monitoring** | Shows per-cell voltages and imbalance in `status` |
 | **BMS balancing** | Charges to 100% and holds for equalization when cells drift |
@@ -66,7 +66,7 @@ Three commands. Set it and forget it. Configure [macOS settings](#-setup) for no
 
 <br>
 
-> Lithium-ion cells degrade faster at higher voltages. At 100% charge each cell sits at ~4.2V, accelerating chemical wear. At 60-65% the resting voltage drops to ~3.95V/cell, significantly reducing stress. Once the battery reaches 65%, charging is disabled. The laptop then runs entirely from wall power — no current flows through the battery at all. Charging re-enables if the battery drops below 60%.
+> Lithium-ion cells degrade faster at higher voltages. At 100% charge each cell sits at ~4.2V, accelerating chemical wear. At 70-75% the resting voltage drops to ~4.0V/cell, significantly reducing stress while leaving enough charge for a day of unplugged work. Once the battery reaches 75%, charging is disabled. The laptop then runs entirely from wall power — no current flows through the battery at all. Charging re-enables if the battery drops below 70%.
 
 <br>
 
@@ -113,9 +113,9 @@ apple-juice maintain 80 50        # maintain 50-80%
 
 | Command | Description |
 |:---|:---|
-| `apple-juice maintain longevity` | **Recommended.** Maintain 60-65% for max lifespan |
+| `apple-juice maintain longevity` | **Recommended.** Maintain 70-75% for max lifespan |
 | `apple-juice maintain 80` | Maintain 75-80% |
-| `apple-juice maintain 80 50` | Maintain 50-80% |
+| `apple-juice maintain 80 50` | Maintain 50-80% (`80-50` also works) |
 | `apple-juice maintain suspend` | Temporarily charge to 100% |
 | `apple-juice maintain recover` | Resume after suspend |
 | `apple-juice maintain stop` | Disable completely |

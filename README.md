@@ -200,7 +200,7 @@ SMC access is granted through visudo with specific command allowlists — only t
 
 apple-juice runs as a background daemon managed by macOS `launchd`. It reads battery state through IOKit and controls charging via SMC keys using the bundled `smc` binary.
 
-When the battery reaches the upper limit (65% in longevity mode), charging is disabled via SMC. The laptop continues to run entirely from wall power — the battery sits idle at its resting voltage with no current flowing. Charging only re-enables when the battery drops below the lower limit (60%), which only happens if you unplug.
+When the battery reaches the upper limit (75% in longevity mode), charging is disabled via SMC. The laptop continues to run entirely from wall power — the battery sits idle at its resting voltage with no current flowing. Charging only re-enables when the battery drops below the lower limit (70%), which only happens if you unplug.
 
 The daemon is configured as a LaunchAgent with `KeepAlive`, so macOS automatically restarts it if the process dies unexpectedly. On clean shutdown (`maintain stop`), it re-enables charging and stays stopped. A startup recovery check runs before every command: if charging is found disabled but the daemon is not running, charging is re-enabled automatically. This ensures a Mac is never left in a non-charging state.
 

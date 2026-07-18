@@ -144,3 +144,10 @@ Safety watchdog fix and CLI cleanup. **Breaking**: six commands removed (see bel
 - `maintain` validates its argument before stopping the running daemon -- previously a typo like `maintain 75-70` killed the daemon and left charging disabled until a safety check noticed
 - `maintain 75-70` is now accepted as shorthand for `maintain 75 70` (maintain level plus recharge threshold), the error message explains the recharge threshold forms, and an invalid threshold is rejected instead of silently ignored
 - `maintain <level>` and `maintain stop` show the battery status again -- the status output was captured by the subprocess runner and discarded, so both commands succeeded silently
+
+## v3.1.1
+
+- Subcommands launched internally (the status report after `maintain`, discharge operations, `maintain recover`) now resolve the binary's real path first -- when apple-juice was invoked by bare name from PATH, those launches silently failed because Foundation's Process does no PATH lookup, which is why `maintain` still printed nothing in v3.1.0
+- Failed subprocess launches are now logged instead of silently returning empty output
+- The safety watchdog no longer kills a maintain daemon that is mid-startup: the daemon writes its PID file before its multi-second SMC startup work, safety checks look for a live daemon process before restarting anything, and the watchdog agent is no longer re-bootstrapped (firing its RunAtLoad check at the worst moment) on every maintain run
+- README "How It Works" section updated to the 70-75% longevity range introduced in v3.1.0

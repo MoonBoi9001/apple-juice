@@ -11,7 +11,7 @@ struct Calibrate: ParsableCommand {
     var action: String?
 
     func run() throws {
-        let binaryPath = CommandLine.arguments[0]
+        let binaryPath = Paths.selfBinary
         let config = ConfigStore()
 
         // Check if this is a scheduled (non-terminal) invocation

@@ -34,6 +34,7 @@ enum ProcessRunner {
         do {
             try process.run()
         } catch {
+            log("Error: failed to launch \(executable): \(error.localizedDescription)")
             return ProcessResult(exitCode: -1, stdout: "", stderr: error.localizedDescription)
         }
 

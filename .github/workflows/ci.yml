@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: [main]
 
+# A re-push to the same branch makes the previous run's result obsolete, so cancel
+# it instead of letting it finish and hold a runner slot.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: macos-15
